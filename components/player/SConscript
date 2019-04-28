@@ -1,0 +1,14 @@
+Import('RTT_ROOT')
+Import('rtconfig')
+from building import *
+
+src = Glob('*.c')
+cwd = GetCurrentDir()
+CPPPATH = [cwd]
+libs  = ['player_gcc']
+libpath  = [cwd]
+
+
+group = DefineGroup('player', src, depend = [''], LIBS = libs, LIBPATH = libpath, CPPPATH = CPPPATH)
+
+Return('group')

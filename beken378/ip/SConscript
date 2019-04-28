@@ -1,0 +1,47 @@
+from building import *
+
+cwd  = GetCurrentDir()
+
+src = []
+
+path = []
+path += [cwd + '/common']
+path += [cwd + '/ke']
+path += [cwd + '/mac']
+path += [cwd + '/lmac/src/hal']
+path += [cwd + '/lmac/src/mm']
+path += [cwd + '/lmac/src/ps']
+path += [cwd + '/lmac/src/rd']
+path += [cwd + '/lmac/src/rx']
+path += [cwd + '/lmac/src/scan']
+path += [cwd + '/lmac/src/sta']
+path += [cwd + '/lmac/src/tx']
+path += [cwd + '/lmac/src/vif']
+path += [cwd + '/lmac/src/rx/rxl']
+path += [cwd + '/lmac/src/tx/txl']
+path += [cwd + '/lmac/src/rwnx']
+path += [cwd + '/lmac/src/p2p']
+path += [cwd + '/lmac/src/chan']
+path += [cwd + '/lmac/src/td']
+path += [cwd + '/lmac/src/tpc']
+path += [cwd + '/lmac/src/tdls']
+path += [cwd + '/umac/src/bam']
+path += [cwd + '/umac/src/llc']
+path += [cwd + '/umac/src/me']
+path += [cwd + '/umac/src/rxu']
+path += [cwd + '/umac/src/scanu']
+path += [cwd + '/umac/src/sm']
+path += [cwd + '/umac/src/txu']
+path += [cwd + '/umac/src/apm']
+path += [cwd + '/umac/src/rc']
+path += [cwd + '/umac/src/mesh']
+
+libs = []
+
+libpath = []
+
+cppdefines = []
+
+group = DefineGroup('beken_ip', src, depend = [''], CPPPATH = path, CPPDEFINES = cppdefines, LIBS = libs, LIBPATH = libpath)
+
+Return('group')
