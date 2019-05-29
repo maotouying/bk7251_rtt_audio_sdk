@@ -19,13 +19,14 @@
 #include "saradc_pub.h"
 #include "param_config.h"
 
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #if CFG_SUPPORT_ALIOS
 #include "hal/soc/soc.h"
 #else
 #include "BkDriverFlash.h"
 #endif
 #include "power_save_pub.h"
+#include "cmd_evm.h"
 
 #define TXPWR_DEFAULT_TAB                 1
 
@@ -35,6 +36,7 @@
 #define MCAL_SAVE_MAC_ADDR                1
 
 #define WLAN_2_4_G_CHANNEL_NUM            (14)
+#define BLE_2_4_G_CHANNEL_NUM             (40)
 #define MAX_RATE_FOR_B_5M                 (5)     // 5.5M
 #define MAX_RATE_FOR_B                    (11)    // 11M
 #define MAX_RATE_FOR_G                    (54)    // 54M
@@ -44,13 +46,19 @@
 #define MOD_DIST_G_BW_N20                 (2)     // bk7231 is 2
 #define MOD_DIST_G_BW_N40                 (4)
 
+// use to INIT_TXPWR_VALUE, see manual_cal_calc_dist
+#define TP_DIST_B                         (0)
+#define TP_DIST_G                         (0)
+#define TP_DIST_N40                       (0)
+#define TP_DIST_BLE                       (0)
+
 #define TXPWR_ELEM_INUSED                 (0)
 #define TXPWR_ELEM_UNUSED                 (1)
 
 #define BK_FLASH_SECTOR_SIZE              (4*1024)  
 #define BK_FLASH_WRITE_CHECK_TIMES        3
 
-#define MCAL_DEBUG                        0
+#define MCAL_DEBUG                        1
 #include "uart_pub.h"
 #if MCAL_DEBUG
 #define MCAL_PRT      os_printf
@@ -95,6 +103,7 @@ typedef enum{
     TXPWR_TAB_N_ID,
     TXPWR_TAB_DIF_GN20_ID,
     TXPWR_TAB_DIF_GN40_ID,
+    TXPWR_TAB_BLE_ID,
     TXPWR_END,
     TXPWR_NON                   = TXPWR_TAB_TAB+0xFF
 }TXPWR_ELEM_ID;
@@ -104,6 +113,7 @@ typedef enum {
     TXPWR_TAB_B_RD              = 0x1u,
     TXPWR_TAB_G_RD              = 0x2u,
     TXPWR_TAB_N_RD              = 0x4u,
+    TXPWR_TAB_BLE               = 0x8u,
 } TXPWR_IS_RD;
 
 
@@ -123,6 +133,7 @@ typedef enum {
 #define SET_TXPWR_FLAG(p, flag)         {(p)->value &= (~(FLAG_MASK<<FLAG_POSI)); \
                                          (p)->value |= ((flag&FLAG_MASK)<<FLAG_POSI);}
 #define INIT_TXPWR_VALUE(gain, flag)    (((flag&FLAG_MASK)<<FLAG_POSI)|(gain&GAIN_MASK))
+
 typedef struct txpwr_st {
     UINT8 value;
 } TXPWR_ST, *TXPWR_PTR;
@@ -151,6 +162,11 @@ typedef struct tag_txpwr_tab_st {
     TXPWR_ELEM_ST head;
     TXPWR_ST tab[WLAN_2_4_G_CHANNEL_NUM];
 } __attribute__((packed)) TAG_TXPWR_TAB_ST, *TAG_TXPWR_TAB_PTR;
+
+typedef struct tag_txpwr_tab_ble_st {
+    TXPWR_ELEM_ST head;
+    TXPWR_ST tab[BLE_2_4_G_CHANNEL_NUM];
+} __attribute__((packed)) TAG_TXPWR_TAB_BLE_ST, *TAG_TXPWR_TAB_BLE_PTR;
 
 typedef struct tag_common_st {
     TXPWR_ELEM_ST head;
@@ -190,38 +206,38 @@ const TXPWR_ST gtxpwr_tab_def_b[WLAN_2_4_G_CHANNEL_NUM] = {
 
 #if (CFG_SOC_NAME == SOC_BK7231U)
 const TXPWR_ST gtxpwr_tab_def_b[WLAN_2_4_G_CHANNEL_NUM] = {  
-    INIT_TXPWR_VALUE(20, TXPWR_ELEM_INUSED),  // ch1  inused  
+    INIT_TXPWR_VALUE(16, TXPWR_ELEM_INUSED),  // ch1  inused  
     INIT_TXPWR_VALUE(20, TXPWR_ELEM_UNUSED),                 
     INIT_TXPWR_VALUE(20, TXPWR_ELEM_UNUSED),                 
     INIT_TXPWR_VALUE(19, TXPWR_ELEM_UNUSED),  // ch4         
     INIT_TXPWR_VALUE(19, TXPWR_ELEM_UNUSED),                 
     INIT_TXPWR_VALUE(19, TXPWR_ELEM_UNUSED),                 
-    INIT_TXPWR_VALUE(18, TXPWR_ELEM_UNUSED),  // ch7         
+    INIT_TXPWR_VALUE(14, TXPWR_ELEM_UNUSED),  // ch7         
     INIT_TXPWR_VALUE(18, TXPWR_ELEM_UNUSED),                 
     INIT_TXPWR_VALUE(18, TXPWR_ELEM_UNUSED),                 
     INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),  // ch10        
     INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),                 
     INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),                 
-    INIT_TXPWR_VALUE(16, TXPWR_ELEM_INUSED),  // ch13  inused
+    INIT_TXPWR_VALUE(12, TXPWR_ELEM_INUSED),  // ch13  inused
     INIT_TXPWR_VALUE(16, TXPWR_ELEM_UNUSED),                 
  };
 #else
 const TXPWR_ST gtxpwr_tab_def_b[WLAN_2_4_G_CHANNEL_NUM] = {   
-    INIT_TXPWR_VALUE(21, TXPWR_ELEM_INUSED),  // ch1  inused  
-    INIT_TXPWR_VALUE(20, TXPWR_ELEM_UNUSED),                  
-    INIT_TXPWR_VALUE(20, TXPWR_ELEM_UNUSED),                  
-    INIT_TXPWR_VALUE(19, TXPWR_ELEM_UNUSED),  // ch4          
-    INIT_TXPWR_VALUE(18, TXPWR_ELEM_UNUSED),                  
-    INIT_TXPWR_VALUE(18, TXPWR_ELEM_UNUSED),                  
-    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),  // ch7          
-    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),                  
-    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),                  
-    INIT_TXPWR_VALUE(16, TXPWR_ELEM_UNUSED),  // ch10         
-    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),                  
-    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),                  
-    INIT_TXPWR_VALUE(14, TXPWR_ELEM_INUSED),  // ch13  inused 
-    INIT_TXPWR_VALUE(14, TXPWR_ELEM_UNUSED),                  
- }; 
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_INUSED),  // ch1  inused  
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),                 
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),                 
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),  // ch4         
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),                 
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),                 
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),  // ch7         
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),                 
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),                 
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),  // ch10        
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),                 
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),                 
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_INUSED),  // ch13  inused
+    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),                          
+ };
 #endif // (CFG_SOC_NAME == SOC_BK7231U)
 #endif 
 
@@ -261,61 +277,194 @@ const TXPWR_ST gtxpwr_tab_def_n_40[WLAN_2_4_G_CHANNEL_NUM] = {
 }; 
 #else
 const TXPWR_ST gtxpwr_tab_def_g[WLAN_2_4_G_CHANNEL_NUM] = {
-    INIT_TXPWR_VALUE(18, TXPWR_ELEM_INUSED),  // ch1  inused
+    INIT_TXPWR_VALUE(17, TXPWR_ELEM_INUSED),  // ch1  inused
     INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),
     INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),    
-    INIT_TXPWR_VALUE(16, TXPWR_ELEM_UNUSED),  // ch4
-    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),
-    INIT_TXPWR_VALUE(15, TXPWR_ELEM_UNUSED),
-    INIT_TXPWR_VALUE(14, TXPWR_ELEM_UNUSED),  // ch7
-    INIT_TXPWR_VALUE(14, TXPWR_ELEM_UNUSED),
-    INIT_TXPWR_VALUE(14, TXPWR_ELEM_UNUSED), 
-    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),  // ch10
-    INIT_TXPWR_VALUE(12, TXPWR_ELEM_UNUSED),
-    INIT_TXPWR_VALUE(12, TXPWR_ELEM_UNUSED),
-    INIT_TXPWR_VALUE(11, TXPWR_ELEM_INUSED),  // ch13  inused
-    INIT_TXPWR_VALUE(11, TXPWR_ELEM_UNUSED),
-};                                                               
+    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),  // ch4
+    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),  // ch7
+    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED), 
+    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),  // ch10
+    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(17, TXPWR_ELEM_INUSED),  // ch13  inused
+    INIT_TXPWR_VALUE(17, TXPWR_ELEM_UNUSED),
+};                                                              
                                                               
 const TXPWR_ST gtxpwr_tab_def_n_40[WLAN_2_4_G_CHANNEL_NUM] = {       
-    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),                         
-    INIT_TXPWR_VALUE( 9, TXPWR_ELEM_UNUSED),                         
-    INIT_TXPWR_VALUE( 9, TXPWR_ELEM_UNUSED),  // ch3                 
-    INIT_TXPWR_VALUE( 8, TXPWR_ELEM_UNUSED),                         
-    INIT_TXPWR_VALUE( 7, TXPWR_ELEM_UNUSED),                         
-    INIT_TXPWR_VALUE( 7, TXPWR_ELEM_UNUSED),                         
-    INIT_TXPWR_VALUE( 6, TXPWR_ELEM_UNUSED),  // ch7                 
-    INIT_TXPWR_VALUE( 6, TXPWR_ELEM_UNUSED),                         
-    INIT_TXPWR_VALUE( 6, TXPWR_ELEM_UNUSED),                         
-    INIT_TXPWR_VALUE( 5, TXPWR_ELEM_UNUSED),                         
-    INIT_TXPWR_VALUE( 4, TXPWR_ELEM_UNUSED),  // ch11                
-    INIT_TXPWR_VALUE( 4, TXPWR_ELEM_UNUSED),                         
-    INIT_TXPWR_VALUE( 3, TXPWR_ELEM_UNUSED),                          
-    INIT_TXPWR_VALUE( 3, TXPWR_ELEM_UNUSED),                          
-};    
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),                         
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),                         
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),  // ch3                 
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),                         
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),                         
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),                         
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),  // ch7                 
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),                         
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),                         
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),                         
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),  // ch11                
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),                         
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),                          
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),                          
+};
 #endif // (CFG_SOC_NAME == SOC_BK7231)
+const TXPWR_ST gtxpwr_tab_def_ble[BLE_2_4_G_CHANNEL_NUM] = {  
+    INIT_TXPWR_VALUE(14, TXPWR_ELEM_UNUSED),  // ch0 2402  inused 
+    INIT_TXPWR_VALUE(14, TXPWR_ELEM_UNUSED),  // ch1 2404
+    INIT_TXPWR_VALUE(14, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(14, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(14, TXPWR_ELEM_UNUSED),  // ch4 2410
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(13, TXPWR_ELEM_UNUSED),  // ch9 2420
+    INIT_TXPWR_VALUE(12, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(12, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(12, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(12, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(12, TXPWR_ELEM_UNUSED),  // ch14 2430
+    INIT_TXPWR_VALUE(11, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(11, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(11, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(11, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_INUSED),  // ch19 2440 inused
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),  // ch24 2450
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),  // ch29 2460
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),  // ch34 2470
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),
+    INIT_TXPWR_VALUE(10, TXPWR_ELEM_UNUSED),  // ch39 2480 inused
+ };
 #endif
 
 TXPWR_ST gtxpwr_tab_b[WLAN_2_4_G_CHANNEL_NUM];
 TXPWR_ST gtxpwr_tab_g[WLAN_2_4_G_CHANNEL_NUM];
 TXPWR_ST gtxpwr_tab_n[WLAN_2_4_G_CHANNEL_NUM];
 TXPWR_ST gtxpwr_tab_n_40[WLAN_2_4_G_CHANNEL_NUM];
+TXPWR_ST gtxpwr_tab_ble[BLE_2_4_G_CHANNEL_NUM];
 UINT32 g_dif_g_n20 = MOD_DIST_G_BW_N20;
 UINT32 g_dif_g_n40 = MOD_DIST_G_BW_N40;
 UINT32 g_cur_temp = DEFAULT_TXID_THERMAL;
 UINT32 g_cur_temp_flash = DEFAULT_TXID_THERMAL;
 UINT32 g_lpf_cal_i = DEFAULT_TXID_LPF_CAP_I, g_lpf_cal_q = DEFAULT_TXID_LPF_CAP_Q;
 UINT32 g_xtal = DEFAULT_TXID_XTAL;
+INT8 g_def_dist_b = TP_DIST_B;
+INT8 g_def_dist_g = TP_DIST_G;
+INT8 g_def_dist_n40 = TP_DIST_N40;
+INT8 g_def_dist_ble = TP_DIST_BLE;
 
 static int manual_cal_fit_txpwr_tab_n_20(UINT32 differ);
 static int manual_cal_fit_txpwr_tab_n_40(UINT32 differ);
 static void manual_cal_adjust_fitting(TXPWR_PTR ptr, UINT16 dist);
+
+static UINT8 manual_cal_calc_dist(UINT8 org, int dist)
+{                                
+    int org_bak, dist_bak, auto_mode;  
+    
+    auto_mode = bk7011_is_rfcali_mode_auto();
+    org_bak = (int)org; 
+    
+    if(auto_mode)
+    {
+        dist_bak = (int)dist;       
+        org_bak = org_bak + dist_bak; 
+        if(org_bak < 0)             
+            org_bak = 0;             
+        else if(org_bak > 31)       
+            org_bak = 31; 
+    }
+
+    return (UINT8)org_bak;     
+} 
+
+#include "net_param_pub.h"
+void manual_cal_set_rate_dist_for_txpwr(int dist_b, int dist_g, 
+                            int dist_n40, int dist_ble)
+{
+    UINT32 dist;
+
+    if((dist_b > 31) || (dist_g > 31) || (dist_n40 > 31) || (dist_ble > 31))
+    {
+        goto set_err;
+    }
+
+    if((dist_b < -31) || (dist_g < -31) || (dist_n40 < -31) || (dist_ble < -31))
+    {
+        goto set_err;
+    }
+
+    dist = ((((UINT8)dist_b) << 24) | (((UINT8)dist_g) << 16)
+        | (((UINT8)dist_n40) << 8) | ((UINT8)dist_ble));
+    
+    save_info_item(RF_CFG_DIST_ITEM, (UINT8 *)&dist, NULL, NULL);
+    
+    os_printf("set dist-- b:%d, g:%d, n40:%d, ble:%d\r\n", dist_b,
+        dist_g, dist_n40, dist_ble);
+
+    return;
+    
+set_err:
+    os_printf("rate_dist range:-31 - 31, b:%d, g:%d, n40:%d, ble:%d\r\n",
+        dist_b, dist_g, dist_n40, dist_ble);
+}
+
+static void manual_cal_get_rate_dist_for_txpwr(void)
+{
+    UINT32 dist;
+
+    if(get_info_item(RF_CFG_DIST_ITEM, (UINT8 *)&dist, NULL, NULL))
+    {
+        g_def_dist_b = (UINT8)((dist >> 24) & 0xff);
+        g_def_dist_g = (UINT8)((dist >> 16) & 0xff);
+        g_def_dist_n40 = (UINT8)((dist >> 8) & 0xff);
+        g_def_dist_ble = (UINT8)((dist) & 0xff);
+    }
+    
+    os_printf("get dist-- b:%d, g:%d, n40:%d, ble:%d\r\n", g_def_dist_b,
+        g_def_dist_g, g_def_dist_n40, g_def_dist_ble);
+}
 
 void manual_cal_save_txpwr(UINT32 rate, UINT32 channel, UINT32 pwr_gain)
 {
     TXPWR_PTR txpwr_tab_ptr = NULL;
     UINT8  is_g_rate = 0;
 
+    // for ble
+    if(rate == EVM_DEFUALT_BLE_RATE)
+    {
+        if(channel > BLE_2_4_G_CHANNEL_NUM) {
+            MCAL_WARN("ble wrong channel:%d\r\n", channel);
+            return;
+        }
+        
+        txpwr_tab_ptr = &gtxpwr_tab_ble[channel];
+
+        SET_TXPWR_GAIN(txpwr_tab_ptr, pwr_gain);
+        SET_TXPWR_FLAG(txpwr_tab_ptr, TXPWR_ELEM_INUSED);
+
+        MCAL_FATAL("save c:%d, gain:%d\r\n", channel, pwr_gain);
+        
+        return;
+    }
+
+    // for wlan wifi
     if((channel == 0) || (channel > WLAN_2_4_G_CHANNEL_NUM)) {
         MCAL_WARN("Manual cal wrong channel:%d\r\n", channel);
         return;
@@ -353,9 +502,9 @@ const UINT16 shift_tab_n[1] = {0}; // for MCS7
 #else
 const UINT16 shift_tab_b[4] = {0, 0, 0, 0}; // 11M base,5.5M,2M,1M
 // 54M base -                 54M,48M,36M,24M,18M,12M,9M,6M
-const UINT16 shift_tab_g[8] = {0,  1,  2,  4,  6,  6,  6, 6}; // 54M base -  12M,9M,6M
-const UINT16 shift_tab_n20[8] = {0, 1, 2, 4, 6, 8, 8, 8}; // n20 mcs7base -  mcs0
-const UINT16 shift_tab_n40[8] = {0, 1, 2, 4, 6, 8, 8, 8}; // n40 mcs7base -  mcs0
+const UINT16 shift_tab_g[8] = {0,  1,  1,  2,  4,  4,  4, 4}; // 54M base -  12M,9M,6M
+const UINT16 shift_tab_n20[8] = {0, 1, 1, 2, 4, 6, 6, 6}; // n20 mcs7base -  mcs0
+const UINT16 shift_tab_n40[8] = {0, 1, 1, 2, 4, 6, 6, 6}; // n40 mcs7base -  mcs0
 #endif
 
 #define PWR_INIT_VAL        17
@@ -465,12 +614,12 @@ UINT32 manual_cal_get_pwr_idx_shift(UINT32 rate, UINT32 bandwidth, UINT32 *pwr_g
         }        
     }
 
-    MCAL_PRT("get_pwr_info: idx: %d, pwr:%d", shift[idex], *pwr_gain);
+    //MCAL_PRT("get_pwr_info: idx: %d, pwr:%d", shift[idex], *pwr_gain);remove for midea
    
     idex = shift[idex] + *pwr_gain;
     *pwr_gain = (idex > 31)? 31: idex;
     
-    MCAL_PRT("--pwr:%d\r\n", *pwr_gain);
+    //MCAL_PRT("--pwr:%d\r\n", *pwr_gain);remove for midea
     
     return ret;
 }
@@ -478,7 +627,26 @@ UINT32 manual_cal_get_pwr_idx_shift(UINT32 rate, UINT32 bandwidth, UINT32 *pwr_g
 int manual_cal_get_txpwr(UINT32 rate, UINT32 channel, UINT32 bandwidth, UINT32 *pwr_gain)
 {
     TXPWR_PTR txpwr_tab_ptr = NULL;
+    UINT8 org;
+    int dist = 0;
+    
+    // for ble
+    if(rate == EVM_DEFUALT_BLE_RATE)
+    {
+        if(channel > BLE_2_4_G_CHANNEL_NUM) {
+            MCAL_WARN("ble wrong channel:%d\r\n", channel);
+            return 0;
+        }
+        
+        txpwr_tab_ptr = &gtxpwr_tab_ble[channel];
+        org = GET_TXPWR_GAIN(txpwr_tab_ptr);
+        dist = g_def_dist_ble;
 
+        *pwr_gain = manual_cal_calc_dist(org, dist);
+        return 1;
+    }
+
+    // for wlan wifi
     if((channel == 0) || (channel > WLAN_2_4_G_CHANNEL_NUM)) {
         MCAL_WARN("Manual cal wrong channel:%d\r\n", channel);
         return 0;
@@ -494,10 +662,13 @@ int manual_cal_get_txpwr(UINT32 rate, UINT32 channel, UINT32 bandwidth, UINT32 *
     if(bandwidth == PHY_CHNL_BW_20) {
         if((rate <= MAX_RATE_FOR_B_5M) || (rate == MAX_RATE_FOR_B)) {
             txpwr_tab_ptr = &gtxpwr_tab_b[channel];
+            dist = g_def_dist_b;
         }else if(rate <= MAX_RATE_FOR_G) {
             txpwr_tab_ptr = &gtxpwr_tab_g[channel];
+            dist = g_def_dist_g;
         }else if((rate <= MAX_RATE_FOR_N) && (rate >= MIN_RATE_FOR_N)) {  
             txpwr_tab_ptr = &gtxpwr_tab_n[channel];
+            dist = g_def_dist_g;
         } else {
             MCAL_FATAL("\r\nManual cal wrong rate:%d\r\n", rate);
             return 0;
@@ -505,62 +676,98 @@ int manual_cal_get_txpwr(UINT32 rate, UINT32 channel, UINT32 bandwidth, UINT32 *
     } else {
         if((rate <= MAX_RATE_FOR_N) && (rate >= MIN_RATE_FOR_N)){  
             txpwr_tab_ptr = &gtxpwr_tab_n_40[channel];
+            dist = g_def_dist_n40;
         } else {
             MCAL_FATAL("\r\nManual cal wrong rate with BW40? %d:%d\r\n", bandwidth, rate);
             txpwr_tab_ptr = &gtxpwr_tab_n[channel];
+            dist = g_def_dist_g;
         }
     }
 
-    *pwr_gain = GET_TXPWR_GAIN(txpwr_tab_ptr);
-     MCAL_PRT("get txpwrtab gain:%d,ch:%d\r\n", *pwr_gain, channel+1);
+    txpwr_tab_ptr = &gtxpwr_tab_ble[channel];
+    org = GET_TXPWR_GAIN(txpwr_tab_ptr);
+    
+    *pwr_gain = manual_cal_calc_dist(org, dist);
+     //MCAL_PRT("get txpwrtab gain:%d,ch:%d\r\n", *pwr_gain, channel+1); remove for midea
 	 
      return 1;
 }
 
-
+extern INT32 gtx_tssi_thred;
+extern INT32 gtx_dcorMod;
+extern INT32 gtx_dcorPA;
 void manual_cal_show_txpwr_tab(void)
 {
     TXPWR_PTR txpwr_tab_ptr = NULL;
-    UINT32 i;
+    UINT8 org;
+    int i, dist = 0;
     
     MCAL_PRT("txpwr table for b:\r\n");
     for(i=0; i<WLAN_2_4_G_CHANNEL_NUM; i++) {
         txpwr_tab_ptr = &gtxpwr_tab_b[i];
+        org = GET_TXPWR_GAIN(txpwr_tab_ptr);
+        dist = g_def_dist_b;
         MCAL_PRT("ch:%2d: value:%02x, flag:%01d, gain:%02d\r\n", 
             i+1, txpwr_tab_ptr->value, 
-            GET_TXPWR_FLAG(txpwr_tab_ptr), GET_TXPWR_GAIN(txpwr_tab_ptr));
+            GET_TXPWR_FLAG(txpwr_tab_ptr), manual_cal_calc_dist(org, dist));
     }
 
     MCAL_PRT("\r\ntxpwr table for g:\r\n");
     for(i=0; i<WLAN_2_4_G_CHANNEL_NUM; i++) {
         txpwr_tab_ptr = &gtxpwr_tab_g[i];
+        org = GET_TXPWR_GAIN(txpwr_tab_ptr);
+        dist = g_def_dist_g;
         MCAL_PRT("ch:%2d: value:%02x, flag:%01d, gain:%02d\r\n", 
             i+1, txpwr_tab_ptr->value, 
-            GET_TXPWR_FLAG(txpwr_tab_ptr), GET_TXPWR_GAIN(txpwr_tab_ptr));
+            GET_TXPWR_FLAG(txpwr_tab_ptr), manual_cal_calc_dist(org, dist));
     }  
 
     MCAL_PRT("\r\ntxpwr table for n20:\r\n");
     for(i=0; i<WLAN_2_4_G_CHANNEL_NUM; i++) {
         txpwr_tab_ptr = &gtxpwr_tab_n[i];
+        org = GET_TXPWR_GAIN(txpwr_tab_ptr);
+        dist = g_def_dist_g;
         MCAL_PRT("ch:%2d: value:%02x, flag:%01d, gain:%02d\r\n", 
             i+1, txpwr_tab_ptr->value, 
-            GET_TXPWR_FLAG(txpwr_tab_ptr), GET_TXPWR_GAIN(txpwr_tab_ptr));
+            GET_TXPWR_FLAG(txpwr_tab_ptr), manual_cal_calc_dist(org, dist));
     }  
 
     MCAL_PRT("\r\ntxpwr table for n40:\r\n");
     for(i=0; i<WLAN_2_4_G_CHANNEL_NUM; i++) {
         txpwr_tab_ptr = &gtxpwr_tab_n_40[i];
+        org = GET_TXPWR_GAIN(txpwr_tab_ptr);
+        dist = g_def_dist_n40;
         MCAL_PRT("ch:%2d: value:%02x, flag:%01d, gain:%02d\r\n", 
             i+1, txpwr_tab_ptr->value, 
-            GET_TXPWR_FLAG(txpwr_tab_ptr), GET_TXPWR_GAIN(txpwr_tab_ptr));
+            GET_TXPWR_FLAG(txpwr_tab_ptr), manual_cal_calc_dist(org, dist));
     }
 
-    MCAL_PRT("\r\n sys temper:%d\r\n", g_cur_temp);
+    MCAL_PRT("\r\ntxpwr table for ble:\r\n");
+    for(i=0; i<BLE_2_4_G_CHANNEL_NUM; i++) {
+        txpwr_tab_ptr = &gtxpwr_tab_ble[i];
+        org = GET_TXPWR_GAIN(txpwr_tab_ptr);
+        dist = g_def_dist_ble;
+        MCAL_PRT("ch:%2d: value:%02x, flag:%01d, gain:%02d\r\n", 
+            i, txpwr_tab_ptr->value, 
+            GET_TXPWR_FLAG(txpwr_tab_ptr), manual_cal_calc_dist(org, dist));
+    }
+
+    MCAL_PRT("\r\nsys temper:%d\r\n", g_cur_temp);
+    MCAL_PRT("sys xtal:%d\r\n", g_xtal);
+
+    MCAL_PRT("rate dist-- b:%d, g:%d, n40:%d, ble:%d, TSSI:%d\r\n", g_def_dist_b,
+        g_def_dist_g, g_def_dist_n40, g_def_dist_ble, gtx_tssi_thred);
+
+    MCAL_PRT("Mod: 0x%x, PA: 0x%x\r\n", bk7011_cal_dcormod_get(), gtx_dcorPA);
+    MCAL_PRT("rf calibration in auto mode: %s\r\n", 
+        (bk7011_is_rfcali_mode_auto() == 1)? "yes" : "no");
+
+    bk7011_cal_dcormod_show();
 }
 
 TXPWR_IS_RD manual_cal_txpwr_tab_is_fitted(void)
 {
-    return (TXPWR_TAB_B_RD | TXPWR_TAB_G_RD | TXPWR_TAB_N_RD);
+    return (TXPWR_TAB_B_RD | TXPWR_TAB_G_RD | TXPWR_TAB_N_RD | TXPWR_TAB_BLE);
 }
 
 static void manual_cal_adjust_fitting(TXPWR_PTR ptr, UINT16 dist)
@@ -615,6 +822,7 @@ UINT32 manual_cal_fitting_txpwr_tab(void)
 {
     UINT32 ret = 0, i;
     TXPWR_PTR tab_ptr = NULL;
+    int auto_mode = 0;
 
     // for b, check ch1, ch7, ch13 is in used
     tab_ptr = gtxpwr_tab_b;
@@ -760,6 +968,137 @@ UINT32 manual_cal_fitting_txpwr_tab(void)
             //    continue;
             SET_TXPWR_FLAG(&tab_ptr[i], TXPWR_ELEM_UNUSED);
         }
+    }
+
+    // for ble
+    tab_ptr = gtxpwr_tab_ble;
+    if((GET_TXPWR_FLAG(&tab_ptr[0]) == TXPWR_ELEM_INUSED)       // ch0
+      ||(GET_TXPWR_FLAG(&tab_ptr[19]) == TXPWR_ELEM_INUSED)     // ch19
+      ||(GET_TXPWR_FLAG(&tab_ptr[39]) == TXPWR_ELEM_INUSED) )  // ch39
+    {  
+        UINT32 flag = 0;
+        TXPWR_PTR base = NULL;
+        MCAL_WARN("txpwr table for ble ch0/19/39 inused\r\n");
+
+        if(GET_TXPWR_FLAG(&tab_ptr[0]) == TXPWR_ELEM_INUSED)
+        {
+            flag |= 0x01;
+            base = &tab_ptr[0];
+        }
+        if(GET_TXPWR_FLAG(&tab_ptr[19]) == TXPWR_ELEM_INUSED)
+        {
+            flag |= 0x02;
+            base = &tab_ptr[19];
+        }
+        if(GET_TXPWR_FLAG(&tab_ptr[39]) == TXPWR_ELEM_INUSED)
+        {
+            flag |= 0x04;
+            base = &tab_ptr[39];
+        }
+        printf("0x%x\r\n", flag);
+        if(flag != 0x7)
+        {
+            // only ch19 do fit
+            if(flag == 0x02)
+            {
+                // ch0 = ch19 + 4
+                TXPWR_PTR ptr;
+                base = &tab_ptr[19];
+                ptr = &tab_ptr[0];
+                SET_TXPWR_GAIN(ptr, GET_TXPWR_GAIN(base) + 4);
+                SET_TXPWR_FLAG(ptr, TXPWR_ELEM_INUSED);
+
+                // fitting ch10, use ch0, ch19 
+                manual_cal_do_fitting(&tab_ptr[10], &tab_ptr[0], &tab_ptr[19]);
+
+                // fitting ch5, use ch0, ch10 
+                manual_cal_do_fitting(&tab_ptr[5], &tab_ptr[0], &tab_ptr[10]);
+
+                // fitting ch15, use ch10, ch19 
+                manual_cal_do_fitting(&tab_ptr[15], &tab_ptr[10], &tab_ptr[19]);
+                for(i=0; i<BLE_2_4_G_CHANNEL_NUM; i++) {
+                    if(i == 0)
+                        base = &tab_ptr[0];
+                    else if(i == 5)
+                        base = &tab_ptr[5];
+                    else if(i == 10)
+                        base = &tab_ptr[10];
+                    else if(i == 15)
+                        base = &tab_ptr[15];
+                    else if(i == 19) {
+                        base = &tab_ptr[19];
+                        continue;
+                    }
+                    
+                    // ch19 -ch39 are same with ch20
+                    os_memcpy(&tab_ptr[i], base, sizeof(TXPWR_ST));
+                    SET_TXPWR_FLAG(&tab_ptr[i], TXPWR_ELEM_UNUSED);
+                }            
+            }
+            else
+            {
+                // clear flag to default set
+                TXPWR_PTR ptr = &tab_ptr[0];
+                SET_TXPWR_FLAG(ptr, TXPWR_ELEM_UNUSED);
+
+                ptr = &tab_ptr[19];
+                SET_TXPWR_FLAG(ptr, TXPWR_ELEM_INUSED);
+
+                ptr = &tab_ptr[39];
+                SET_TXPWR_FLAG(ptr, TXPWR_ELEM_UNUSED);
+            }
+        }
+        else
+        {
+            int start, end;
+            // fitting ch10, use ch0, ch19 
+            manual_cal_do_fitting(&tab_ptr[10], &tab_ptr[0], &tab_ptr[19]);
+
+            // fitting ch5, use ch0, ch10 
+            manual_cal_do_fitting(&tab_ptr[5], &tab_ptr[0], &tab_ptr[10]);
+
+            // fitting ch15, use ch10, ch19 
+            manual_cal_do_fitting(&tab_ptr[15], &tab_ptr[10], &tab_ptr[19]);
+            
+            // fitting ch30, use ch19, ch39 
+            manual_cal_do_fitting(&tab_ptr[30], &tab_ptr[19], &tab_ptr[39]);
+
+            // fitting ch25, use ch19, ch30 
+            manual_cal_do_fitting(&tab_ptr[25], &tab_ptr[19], &tab_ptr[30]);
+
+            // fitting ch35, use ch30, ch39 
+            manual_cal_do_fitting(&tab_ptr[35], &tab_ptr[30], &tab_ptr[39]);
+
+            for(i=0; i<BLE_2_4_G_CHANNEL_NUM; i++) {
+                if(i == 0)
+                    base = &tab_ptr[0];
+                else if(i == 5)
+                    base = &tab_ptr[5];
+                else if(i == 10)
+                    base = &tab_ptr[10];
+                else if(i == 15)
+                    base = &tab_ptr[15];
+                else if(i == 19) {
+                    base = &tab_ptr[19];
+                    continue;
+                }
+                else if(i == 25)
+                    base = &tab_ptr[25];
+                else if(i == 30)
+                    base = &tab_ptr[30];
+                else if(i == 35)
+                    base = &tab_ptr[35];
+                else if(i == 39)
+                    base = &tab_ptr[39];
+                
+                os_memcpy(&tab_ptr[i], base, sizeof(TXPWR_ST));
+                SET_TXPWR_FLAG(&tab_ptr[i], TXPWR_ELEM_UNUSED);
+            }
+        }
+    }
+    else
+    {
+        MCAL_WARN("txpwr table ble ch0/19/39 none one unused, use def\r\n");
     }
 
     return ret;
@@ -988,11 +1327,11 @@ write_again:
             #if 1
             for(int i=0; i<len; i++) 
             {
-                MCAL_PRT("%02x,", org_buf[i]);
+                null_prf("%02x,", org_buf[i]);
                 if((i+1)%16 == 0)
-                    MCAL_PRT("\r\n");
+                    null_prf("\r\n");
             }
-            MCAL_PRT("\r\n");
+            null_prf("\r\n");
             #endif
             os_printf("manual_cal_write_flash ok\r\n");
         
@@ -1130,12 +1469,23 @@ UINT32 manual_cal_load_txpwr_tab_flash(void)
     }
     // only need load dist40
     addr = manual_cal_search_txpwr_tab(TXPWR_TAB_DIF_GN40_ID, addr_start);
-    if(addr) {   
+    if(addr) {
         ddev_read(flash_handle, (char *)&head, sizeof(TXPWR_ELEM_ST), addr);
         ddev_read(flash_handle, (char *)&g_dif_g_n40, head.len, addr + sizeof(TXPWR_ELEM_ST));      
         MCAL_PRT("dif g and n40 ID in flash:%d\r\n", g_dif_g_n40);
     } else {
         MCAL_WARN("dif g and n40 ID in flash no found, use def:%d\r\n", g_dif_g_n40);
+    }
+
+    // for ble tx pwr
+    if(is_ready_flash & TXPWR_TAB_BLE) {
+        addr = manual_cal_search_txpwr_tab(TXPWR_TAB_BLE_ID, addr_start);
+        if(addr) {
+            ddev_read(flash_handle, (char *)&head, sizeof(TXPWR_ELEM_ST), addr);
+            ddev_read(flash_handle, (char *)gtxpwr_tab_ble, head.len, addr + sizeof(TXPWR_ELEM_ST));
+        }else {
+            MCAL_WARN("txpwr tabe ble in flash no found\r\n");
+        }
     }
     
     ddev_close(flash_handle);
@@ -1147,6 +1497,11 @@ UINT32 manual_cal_load_txpwr_tab_flash(void)
 UINT32 manual_cal_load_default_txpwr_tab(UINT32 is_ready_flash)
 {
     #if TXPWR_DEFAULT_TAB
+    TXPWR_PTR txpwr_tab_ptr;
+
+    // load dist first, don't care auto or manual mode
+    manual_cal_get_rate_dist_for_txpwr();
+
     if(!(is_ready_flash & TXPWR_TAB_B_RD)) {
         os_memcpy(gtxpwr_tab_b, gtxpwr_tab_def_b, sizeof(gtxpwr_tab_def_b));
         MCAL_WARN("Load default txpwr for b:%p\r\n", gtxpwr_tab_def_b);
@@ -1154,8 +1509,8 @@ UINT32 manual_cal_load_default_txpwr_tab(UINT32 is_ready_flash)
 
     if(!(is_ready_flash & TXPWR_TAB_G_RD)) {
         os_memcpy(gtxpwr_tab_g, gtxpwr_tab_def_g, sizeof(gtxpwr_tab_def_g));
-        MCAL_WARN("Load default txpwr for g:%p\r\n", gtxpwr_tab_def_g);
-
+        MCAL_WARN("Load default txpwr for g:%p, dist:%d\r\n", gtxpwr_tab_def_g);
+        
         manual_cal_fit_txpwr_tab_n_20(g_dif_g_n20); 
         MCAL_WARN("fit n20 table with dist:%d\r\n", g_dif_g_n20);
     }
@@ -1164,7 +1519,13 @@ UINT32 manual_cal_load_default_txpwr_tab(UINT32 is_ready_flash)
         os_memcpy(gtxpwr_tab_n_40, gtxpwr_tab_def_n_40, sizeof(gtxpwr_tab_def_n_40));
         MCAL_WARN("Load default txpwr for n40:%p\r\n", gtxpwr_tab_def_n_40);
     }
+
+    if(!(is_ready_flash & TXPWR_TAB_BLE)) {
+        os_memcpy(gtxpwr_tab_ble, gtxpwr_tab_def_ble, sizeof(gtxpwr_tab_def_ble));
+        MCAL_WARN("Load default txpwr for ble:%p\r\n", gtxpwr_tab_def_ble);
+    }
     #endif
+    
     return 0;
 }
 
@@ -1200,7 +1561,8 @@ int manual_cal_save_txpwr_tab_to_flash(void)
 
     // alloc all memery at onece, so we no need to change the size of buf in combin function
     txpwr_len = sizeof(TAG_TXPWR_ST) + sizeof(TAG_ENABLE_ST) 
-            + 3*sizeof(TAG_TXPWR_TAB_ST) + 2*sizeof(TAG_DIF_ST);
+            + 3*sizeof(TAG_TXPWR_TAB_ST) + 2*sizeof(TAG_DIF_ST) 
+            + sizeof(TAG_TXPWR_TAB_BLE_ST);
 
     
     // read flash, then combin the table in flash
@@ -1336,7 +1698,26 @@ int manual_cal_save_txpwr_tab_to_flash(void)
     tag_dif.head.len = sizeof(UINT32);
     tag_dif.differ = g_dif_g_n40;
     os_memcpy(tag_dif_ptr, &tag_dif, sizeof(TAG_DIF_ST)); 
-    txpwr_buf = (UINT8*)(txpwr_buf + sizeof(TAG_DIF_ST));    
+    txpwr_buf = (UINT8*)(txpwr_buf + sizeof(TAG_DIF_ST));  
+
+    // for tag TXPWR_TAB_BLE_ID
+    TAG_TXPWR_TAB_BLE_PTR tag_tab_ble_ptr = (TAG_TXPWR_TAB_BLE_PTR)(txpwr_buf); 
+    TAG_TXPWR_TAB_BLE_ST tag_tab_ble;
+    tag_tab_ble.head.type = TXPWR_TAB_BLE_ID;
+    tag_tab_ble.head.len = sizeof(TXPWR_ST)*BLE_2_4_G_CHANNEL_NUM;
+    if(is_ready & TXPWR_TAB_BLE) {
+        os_memcpy(&tag_tab_ble.tab[0], gtxpwr_tab_ble, tag_tab_ble.head.len);
+    } else if(is_ready_flash & TXPWR_TAB_BLE) {
+        addr = manual_cal_search_txpwr_tab(TXPWR_TAB_BLE_ID, addr_start);
+        if(addr) {
+            ddev_read(flash_handle, (char *)&head, sizeof(TXPWR_ELEM_ST), addr);
+            ddev_read(flash_handle, (char *)&tag_tab_ble.tab[0], head.len, addr + sizeof(TXPWR_ELEM_ST)); 
+        } else {
+            MCAL_PRT("txpwr tabe ble in flash no found\r\n");
+        }
+    }
+    os_memcpy(tag_tab_ble_ptr, &tag_tab_ble, sizeof(TAG_TXPWR_TAB_BLE_ST));
+    txpwr_buf = (UINT8*)(txpwr_buf + sizeof(TAG_TXPWR_TAB_BLE_ST)); 
     
     ddev_close(flash_handle);
 
@@ -1693,10 +2074,49 @@ void manual_cal_show_otp_flash(void)
 void manual_cal_clear_otp_flash(void)
 {   
     UINT32 flash_len = 1024;
-    UINT8 *buf = (UINT8*)os_malloc(flash_len); 
+    UINT32 status, addr, addr_start;
+    DD_HANDLE flash_handle;
+    TXPWR_ELEM_ST head;
+    TXPWR_IS_RD is_ready_flash = 0;
+    UINT8 *buf;
 
-    os_memset(buf, 0xff, sizeof(flash_len));
+    #if CFG_SUPPORT_ALIOS
+	hal_logic_partition_t *pt = hal_flash_get_info(HAL_PARTITION_RF_FIRMWARE);
+	#else
+	bk_logic_partition_t *pt = bk_flash_get_info(BK_PARTITION_RF_FIRMWARE);
+	#endif
+
+    addr_start = manual_cal_search_txpwr_tab(TXPWR_TAB_TAB, pt->partition_start_addr);//TXPWR_TAB_FLASH_ADDR); 
+    if(!addr_start) {
+        MCAL_WARN("NO TXPWR_TAB_TAB found in flash\r\n");
+        return;
+    }
+    
+    addr = manual_cal_search_txpwr_tab(TXPWR_ENABLE_ID, addr_start);  
+    if(!addr)
+    {
+        MCAL_WARN("NO TXPWR_ENABLE_ID found in flash\r\n");
+        return;
+    }
+    
+    flash_handle = ddev_open(FLASH_DEV_NAME, &status, 0);
+    ddev_read(flash_handle, (char *)&head, sizeof(TXPWR_ELEM_ST), addr);
+    ddev_read(flash_handle, (char *)&is_ready_flash, head.len, addr + sizeof(TXPWR_ELEM_ST));
+
+    buf = (UINT8*)os_malloc(flash_len); 
+    if(buf == NULL)
+    {
+        return;
+    }
+    // read all data, from pt->partition_start_addr
+    ddev_read(flash_handle, (char *)buf, flash_len, pt->partition_start_addr);
+
+    addr = addr + sizeof(TXPWR_ELEM_ST) - pt->partition_start_addr;
+    MCAL_PRT("clear is_ready_flash:0x%x, 0x%x\r\n", is_ready_flash, addr);
+    
+    os_memset(&buf[addr], 0, head.len);
     manual_cal_update_flash_area(0, buf, flash_len);
+
     os_free(buf);
 }
 
@@ -1705,7 +2125,8 @@ void manual_cal_set_xtal(UINT32 xtal)
     UINT32 param = xtal;
     if(xtal > PARAM_XTALH_CTUNE_MASK)
         param = PARAM_XTALH_CTUNE_MASK;
-    
+
+    os_printf("xtal_cali:%d\r\n", xtal);
     sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_SET_XTALH_CTUNE, &param);
     g_xtal = param;
 }
@@ -1891,6 +2312,7 @@ init_temp:
     MCAL_FATAL("temp in flash is:%d\r\n", tem_in_flash);
     return tem_in_flash;
 }
+
 #endif  // CFG_SUPPORT_MANUAL_CALI
 
 

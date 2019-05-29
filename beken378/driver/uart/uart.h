@@ -301,5 +301,7 @@ int uart_tx_fifo_needwr_callback_set(int uport, uart_callback callback, void *pa
 int uart_tx_end_callback_set(int uport, uart_callback callback, void *param);
 void uart_set_tx_stop_end_int(UINT8 uport, UINT8 set);
 void uart_set_tx_fifo_needwr_int(UINT8 uport, UINT8 set);
+void uart_hw_set_change(UINT8 uport, uart_config_t *uart_config);
+
 
 #endif // _UART_H_

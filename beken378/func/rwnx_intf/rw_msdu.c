@@ -4,7 +4,7 @@
 #include "str_pub.h"
 #include "mem_pub.h"
 #include "txu_cntrl.h"
-
+#include "bk_rtos_pub.h"
 #include "lwip/pbuf.h"
 
 #include "arm_arch.h"
@@ -329,10 +329,10 @@ void rwm_flush_txing_list(UINT8 sta_idx)
         }
     }
 
-    if(rtos_is_timer_running(&g_ap_ps.sta_ps[sta_idx].timer)) 
+    if(bk_rtos_is_timer_running(&g_ap_ps.sta_ps[sta_idx].timer)) 
     {
         os_printf("stop ap ps timer, staid:%d\r\n", sta_idx);
-        ret = rtos_stop_timer(&g_ap_ps.sta_ps[sta_idx].timer);
+        ret = bk_rtos_stop_timer(&g_ap_ps.sta_ps[sta_idx].timer);
         ASSERT(0 == ret);   
     }
 }
@@ -382,8 +382,8 @@ void rwm_ps_tranfer_node(MSDU_NODE_T *node)
                     
                     //rwnx_send_me_uapsd_traffic_ind(sta_idx, 1);
                     rw_msg_send_tim_update(vif_idx, aid, 1);
-                    if(!rtos_is_timer_running(&g_ap_ps.sta_ps[sta_idx].timer)) {
-                        ret = rtos_start_timer(&g_ap_ps.sta_ps[sta_idx].timer);
+                    if(!bk_rtos_is_timer_running(&g_ap_ps.sta_ps[sta_idx].timer)) {
+                        ret = bk_rtos_start_timer(&g_ap_ps.sta_ps[sta_idx].timer);
 	                    ASSERT(0 == ret);
                     }
                 }
@@ -461,16 +461,16 @@ void rwm_msdu_ps_change_ind_handler(void *msg)
        // os_printf("ps off, trigger txing sending %d\r\n", node_left);
         bmsg_txing_sender(ind->sta_idx);
         
-        if(rtos_is_timer_running(&g_ap_ps.sta_ps[ind->sta_idx].timer)) {
-            ret = rtos_stop_timer(&g_ap_ps.sta_ps[ind->sta_idx].timer);
+        if(bk_rtos_is_timer_running(&g_ap_ps.sta_ps[ind->sta_idx].timer)) {
+            ret = bk_rtos_stop_timer(&g_ap_ps.sta_ps[ind->sta_idx].timer);
             ASSERT(0 == ret);
         }
     } else if((ind->ps_state == PS_MODE_ON) && node_left)  {
 
         //os_printf("ps_change on:%d\r\n", node_left);
         // do something
-        if(!rtos_is_timer_running(&g_ap_ps.sta_ps[ind->sta_idx].timer)) {
-            ret = rtos_start_timer(&g_ap_ps.sta_ps[ind->sta_idx].timer);
+        if(!bk_rtos_is_timer_running(&g_ap_ps.sta_ps[ind->sta_idx].timer)) {
+            ret = bk_rtos_start_timer(&g_ap_ps.sta_ps[ind->sta_idx].timer);
 	        ASSERT(0 == ret);
         }
     }
@@ -496,7 +496,7 @@ void rwm_msdu_init(void)
         int ret; 
         INIT_LIST_HEAD(&g_ap_ps.sta_ps[i].txing);
         
-    	ret = rtos_init_timer(&g_ap_ps.sta_ps[i].timer, 
+    	ret = bk_rtos_init_timer(&g_ap_ps.sta_ps[i].timer, 
 			                   MAX_BUFFER_TIME,  
 			                   rwm_msdu_ap_ps_timeout, 
 			                   (void *)i);  

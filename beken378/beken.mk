@@ -8,7 +8,7 @@ $(NAME)_CFLAGS += -marm
 
 $(NAME)_INCLUDES := app/standalone-ap \
                     app/standalone-station \
-					driver/sdio \
+		    driver/sdio \
                     driver/uart \
                     driver/sys_ctrl \
                     driver/gpio \
@@ -19,13 +19,14 @@ $(NAME)_INCLUDES := app/standalone-ap \
                     driver/rc_beken \
                     driver/general_dma \
                     driver/spidma \
+		    driver/include \
                     func/sdio_intf \
                     func/power_save \
-					func/temp_detect \
+		    func/temp_detect \
                     func/spidma_intf \
                     func/ethernet_intf \
                     func/rwnx_intf \
-					func/rf_test 
+		    func/rf_test 
 					
 $(NAME)_INCLUDES += ip/ke \
 					ip/mac \

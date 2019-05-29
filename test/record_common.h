@@ -1,6 +1,8 @@
 #ifndef __RECORD_COMMON_H__
 #define __RECORD_COMMON_H__
 
+#include <stdint.h>
+
 struct net_worker
 {
     char *url;

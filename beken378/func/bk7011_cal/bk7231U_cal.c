@@ -1993,7 +1993,7 @@ void bk7011_cal_dpll(void)
 #define BAND_CAL_VAL_MIN               0x00U
 
 #ifdef INCLUDE_OS
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #define BAND_CAL_TIMER_INTVAL          500  // ms
 beken_timer_t band_timer;
 #endif
@@ -2095,11 +2095,11 @@ void bk7011_band_timer_handler(void* data)
 void bk7011_band_detect(void)
 {
 #ifdef INCLUDE_OS
-    rtos_init_timer(&band_timer, 
+    bk_rtos_init_timer(&band_timer, 
                             BAND_CAL_TIMER_INTVAL, 
                             bk7011_band_timer_handler, 
                             (void *)0);
-	rtos_start_timer(&band_timer);
+	bk_rtos_start_timer(&band_timer);
 #endif
 }
 

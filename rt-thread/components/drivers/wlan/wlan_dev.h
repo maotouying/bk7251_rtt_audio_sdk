@@ -192,8 +192,7 @@ int rt_wlan_get_rssi(struct rt_wlan_device *device);
 int rt_wlan_get_mac(struct rt_wlan_device *device, rt_uint8_t hwaddr[6]);
 int rt_wlan_set_mac(struct rt_wlan_device *device, rt_uint8_t hwaddr[6]);
 
-/* enter power save level */
-int rt_wlan_enter_powersave(struct rt_wlan_device *device, int level);
+
 
 /* register the event handler */
 int rt_wlan_register_event_handler(struct rt_wlan_device *device, rt_wlan_event_t event,

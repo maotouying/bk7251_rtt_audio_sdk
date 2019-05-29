@@ -1,6 +1,6 @@
 #include "sys_config.h"
 #if (CFG_SOC_NAME == SOC_BK7221U)
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "uart_pub.h"
 #include "str_pub.h"
 #include "mem_pub.h"
@@ -22,7 +22,7 @@ void hal_aes_init(void *ctx)
 
     if(hal_aes_mutex == NULL)
     {
-        result = rtos_init_mutex(&hal_aes_mutex);
+        result = bk_rtos_init_mutex(&hal_aes_mutex);
         if (result != kNoErr)
         {
             os_printf("aes mutex init failed\n");
@@ -38,9 +38,9 @@ int hal_aes_setkey_dec( void *ctx, const unsigned char *key, unsigned int keybit
 {
     AES_RETURN ret; 
 
-    rtos_lock_mutex(&hal_aes_mutex);
+    bk_rtos_lock_mutex(&hal_aes_mutex);
     ret = security_aes_set_key(key, keybits);
-    rtos_unlock_mutex(&hal_aes_mutex);
+    bk_rtos_unlock_mutex(&hal_aes_mutex);
 
     return (ret == AES_OK)? 0: -1;
 }
@@ -49,9 +49,9 @@ int hal_aes_setkey_enc( void *ctx, const unsigned char *key, unsigned int keybit
 {
     AES_RETURN ret; 
 
-    rtos_lock_mutex(&hal_aes_mutex);
+    bk_rtos_lock_mutex(&hal_aes_mutex);
     ret = security_aes_set_key(key, keybits);
-    rtos_unlock_mutex(&hal_aes_mutex);
+    bk_rtos_unlock_mutex(&hal_aes_mutex);
 
     return (ret == AES_OK)? 0: -1;
 }
@@ -63,11 +63,11 @@ int hal_aes_crypt_ecb( void *ctx,
 {
     AES_RETURN ret; 
 
-    rtos_lock_mutex(&hal_aes_mutex);
+    bk_rtos_lock_mutex(&hal_aes_mutex);
     ret = security_aes_set_block_data(input);
     if(ret != AES_OK) 
     {
-        rtos_unlock_mutex(&hal_aes_mutex);
+        bk_rtos_unlock_mutex(&hal_aes_mutex);
         return -1;
     }
 
@@ -79,7 +79,7 @@ int hal_aes_crypt_ecb( void *ctx,
     security_aes_start(mode);
 
     ret = security_aes_get_result_data(output);
-    rtos_unlock_mutex(&hal_aes_mutex);
+    bk_rtos_unlock_mutex(&hal_aes_mutex);
 
     return (ret == AES_OK)? 0: -1;
 }
@@ -87,7 +87,7 @@ int hal_aes_crypt_ecb( void *ctx,
 void hal_aes_free( void *ctx )
 {
     if(hal_aes_mutex) 
-        rtos_deinit_mutex(&hal_aes_mutex);
+        bk_rtos_deinit_mutex(&hal_aes_mutex);
 
     // the same operate as hal_aes_init
     security_aes_init(NULL, NULL);

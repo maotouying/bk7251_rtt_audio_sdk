@@ -4,6 +4,7 @@
 #include "drv_model_pub.h"
 #include "fake_clock_pub.h"
 #include <rtthread.h>
+#include "power_save_pub.h"
 
 #if CFG_BK7221_MDM_WATCHDOG_PATCH
 void rc_reset_patch(void);

@@ -688,6 +688,7 @@ void handle_probe_req(struct hostapd_data *hapd,
 		return;
 	}
 
+#if 0  // delete those code for ap mode
 	/*
 	 * No need to reply if the Probe Request frame was sent on an adjacent
 	 * channel. IEEE Std 802.11-2012 describes this as a requirement for an
@@ -708,6 +709,7 @@ void handle_probe_req(struct hostapd_data *hapd,
 			   hapd->iconf->channel, elems.ds_params[0]);
 		return;
 	}
+#endif
 
 #ifdef CONFIG_P2P
 	if (hapd->p2p && elems.wps_ie) {

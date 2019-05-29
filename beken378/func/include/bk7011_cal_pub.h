@@ -1,6 +1,11 @@
 #ifndef _BK7011_CAL_PUB_H_
 #define _BK7011_CAL_PUB_H_
 
+#include "typedef.h"
+
+#define CALI_MODE_AUTO          0
+#define CALI_MODE_MANUAL        1
+
 typedef struct tmp_pwr_st {
     UINT8 mod;
     UINT8 pa;
@@ -9,6 +14,7 @@ typedef struct tmp_pwr_st {
 extern void calibration_main(void);
 extern INT32 rwnx_cal_load_trx_rcbekn_reg_val(void);
 extern void rwnx_cal_set_txpwr_by_rate(INT32 rate, UINT32 test_mode);
+extern void rwnx_cal_set_txpwr_by_channel(UINT32 channel);
 extern INT32 rwnx_cal_save_trx_rcbekn_reg_val(void);
 extern void do_calibration_in_temp_dect(void);
 extern void bk7011_cal_bias(void);
@@ -47,6 +53,7 @@ extern void manual_cal_load_differ_tag_from_flash(void);
 extern void bk7011_micopwr_config_tssi_read_prepare(void);
 extern void bk7011_micopwr_tssi_read(void);
 extern void bk7011_micopwr_tssi_show(void);
+extern void rwnx_cal_set_reg_adda_ldo(UINT32 val);
 
 extern void manual_cal_tmp_pwr_init(UINT16 init_temp, UINT16 init_thre, UINT16 init_dist);
 extern void manual_cal_tmp_pwr_init_reg(UINT16 reg_mod, UINT16 reg_pa);
@@ -55,10 +62,18 @@ extern void manual_cal_set_tmp_pwr_flag(UINT8 flag);
 extern TMP_PWR_PTR manual_cal_set_tmp_pwr(UINT16 cur_val, UINT16 thre, UINT16 *last);
 extern UINT32 manual_cal_load_temp_tag_flash(void);
 extern UINT32 manual_cal_load_adc_cali_flash(void);
+extern void manual_cal_set_rate_dist_for_txpwr(int dist_b, int dist_g, int dist_n40, int dist_ble);
 
 extern void rwnx_cal_set_reg_mod_pa(UINT16 reg_mod, UINT16 reg_pa);
 extern void rwnx_cal_do_temp_detect(UINT16 cur_val, UINT16 thre, UINT16 *last);
 extern void rwnx_cal_set_lpfcap_iq(UINT32 lpfcap_i, UINT32 lpfcap_q);
+extern void rwnx_cal_set_40M_extra_setting(UINT8 val);
+extern void rwnx_cal_set_40M_setting(void);
+extern void bk7011_set_rf_config_tssithred(int tssi_thred);
+extern int bk7011_is_rfcali_mode_auto(void);
+extern void bk7011_cal_dcormod_show(void);
+extern UINT8 bk7011_cal_dcormod_get(void);
+extern void bk7011_set_rfcali_mode(int mode);
 
 
 #endif // _BK7011_CAL_PUB_H_

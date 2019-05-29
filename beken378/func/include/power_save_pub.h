@@ -2,7 +2,7 @@
 #define _POWER_SAVE_PUB_H_
 
 #include "arch.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "rw_pub.h"
 #include "wlan_ui_pub.h"
 

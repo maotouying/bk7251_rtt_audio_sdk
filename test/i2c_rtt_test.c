@@ -6,7 +6,7 @@
 #include <time.h>
 #include <drv_iic.h>
 
-
+#if (BEKEN_USING_IIC && RT_USING_I2C)
 #define eeprom_addr   0x50;  /* 1010A2A1A0 -R/W */
 
 
@@ -148,5 +148,7 @@ FINSH_FUNCTION_EXPORT_ALIAS(i2c_test_rtt, __cmd_i2c_test_rtt, i2c test rtt cm);
 //FINSH_FUNCTION_EXPORT_ALIAS(i2c_test_set, __cmd_i2c_test_set, i2c test set cmd);
 //FINSH_FUNCTION_EXPORT_ALIAS(i2c_test_get, __cmd_i2c_test_get, i2c test get cmd);
 #endif
+
+#endif // (BEKEN_USING_IIC && RT_USING_I2C)
 
 

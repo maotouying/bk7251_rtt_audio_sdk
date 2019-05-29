@@ -1,6 +1,6 @@
 #include "sys_config.h"
 #if (CFG_SOC_NAME == SOC_BK7221U)
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "uart_pub.h"
 #include "arm_arch.h"
 #include "icu_pub.h"

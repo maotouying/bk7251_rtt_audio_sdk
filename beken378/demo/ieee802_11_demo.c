@@ -14,7 +14,7 @@
 #include "sm.h"
 
 #include "sys_rtos.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "error.h"
 
 #include "wlan_ui_pub.h"
@@ -330,6 +330,24 @@ void demo_ip_app_init(void)
 				ipStatus.mask, MAC2STR((unsigned char*)ipStatus.mac));
 }
 
+void bk_demo_monitor_cb(uint8_t *data, int len, hal_wifi_link_info_t *info)
+{
+	os_printf("len:%d\r\n", len);
+		
+	//Only for reference
+	/*
+	User can get ssid and key by prase monitor data,
+	refer to the following code, which is the way airkiss
+	use monitor get wifi info from data
+	*/
+#if 0
+	int airkiss_recv_ret;
+	airkiss_recv_ret = airkiss_recv(ak_contex, data, len);
+#endif	
+	
+}
+
+
 int wifi_demo(int argc, char **argv)
 {
 	char *oob_ssid = NULL;
@@ -367,13 +385,13 @@ int wifi_demo(int argc, char **argv)
 	    os_printf("sta_adv_Command\r\n");
 	    if (argc == 3)
 	    {
-	        oob_ssid = argv[1];
+	        oob_ssid = argv[2];
 	        connect_key = "1";
 	    }
 	    else if (argc == 4)
 	    {
-	        oob_ssid = argv[1];
-	        connect_key = argv[2];
+	        oob_ssid = argv[2];
+	        connect_key = argv[3];
 	    }
 	    else
 	    {
@@ -394,13 +412,13 @@ int wifi_demo(int argc, char **argv)
 		os_printf("SOFTAP_COMMAND\r\n\r\n");
 		if (argc == 3)
 		{
-			oob_ssid = argv[1];
+			oob_ssid = argv[2];
 			connect_key = "1";
 		}
 		else if (argc == 4)
 		{
-			oob_ssid = argv[1];
-			connect_key = argv[2];
+			oob_ssid = argv[2];
+			connect_key = argv[3];
 		}
 		else
 		{
@@ -413,6 +431,28 @@ int wifi_demo(int argc, char **argv)
 			demo_softap_app_init(oob_ssid, connect_key);
 		}
 		return 0;
+	}
+
+	if(strcmp(argv[1], "monitor") == 0)
+	{
+		if(argc != 3)
+		{
+			os_printf("parameter invalid\r\n");
+		}
+
+		if(strcmp(argv[2], "start") == 0)
+		{
+			bk_wlan_register_monitor_cb(bk_demo_monitor_cb);
+			bk_wlan_start_monitor();
+		}
+		else if(strcmp(argv[2], "stop") == 0)
+		{
+			bk_wlan_stop_monitor();
+		}
+		else
+		{
+			os_printf("parameter invalid\r\n");
+		}
 	}
 
 	return 0;

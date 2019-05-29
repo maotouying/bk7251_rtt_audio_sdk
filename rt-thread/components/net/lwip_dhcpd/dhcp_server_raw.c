@@ -55,7 +55,7 @@
 
 /* allocated client ip range */
 #ifndef DHCPD_CLIENT_IP_MIN
-    #define DHCPD_CLIENT_IP_MIN     2
+    #define DHCPD_CLIENT_IP_MIN     100
 #endif
 #ifndef DHCPD_CLIENT_IP_MAX
     #define DHCPD_CLIENT_IP_MAX     254
@@ -596,7 +596,7 @@ free_pbuf_and_return:
 * - ERR_OK - No error
 * - ERR_MEM - Out of memory
 */
-err_t
+static err_t
 dhcp_server_start(struct netif *netif, ip4_addr_t *start, ip4_addr_t *end)
 {
     struct dhcp_server *dhcp_server;
@@ -686,51 +686,22 @@ void dhcpd_start(const char *netif_name)
         goto _exit;
     }
 
-    if (1)
+    ip4_addr_t ip_start, ip_end;
+    ip_start.addr = ntohl(ntohl(netif->ip_addr.addr & netif->netmask.addr) 
+                | (DHCPD_CLIENT_IP_MIN) & ntohl(~netif->netmask.addr));
+    
+    ip_end.addr = ntohl(ntohl(netif->ip_addr.addr & netif->netmask.addr) 
+                | (DHCPD_CLIENT_IP_MAX) & ntohl(~netif->netmask.addr));
+
+    DEBUG_PRINTF("ip_start: [%s]\r\n", inet_ntoa(ip_start));
+    DEBUG_PRINTF("ip_end: [%s]\r\n", inet_ntoa(ip_end));
+
+    res = dhcp_server_start(netif, &ip_start, &ip_end);
+    if (res != 0)
     {
-        extern void set_if(const char *netif_name, const char *ip_addr, const char *gw_addr, const char *nm_addr);
-
-        dhcp_stop(netif);
-
-        set_if(netif_name, DHCPD_SERVER_IP, "0.0.0.0", "255.255.255.0");
-
-        netif_set_up(netif);
+        DEBUG_PRINTF("dhcp_server_start res: %s.\r\n", res);
     }
 
-    {
-        char str_tmp[4 * 4 + 4] = DHCPD_SERVER_IP;
-        char *p = str_tmp;
-        ip4_addr_t ip_start, ip_end;
-
-        p = strchr(str_tmp, '.');
-        if (p)
-        {
-            p = strchr(p + 1, '.');
-            if (p)
-            {
-                p = strchr(p + 1, '.');
-            }
-        }
-        if (!p)
-        {
-            DEBUG_PRINTF("DHCPD_SERVER_IP: %s error!\r\n", str_tmp);
-            goto _exit;
-        }
-        p = p + 1; /* move to xxx.xxx.xxx.^ */
-
-        sprintf(p, "%d", DHCPD_CLIENT_IP_MIN);
-        ip4addr_aton(str_tmp, &ip_start);
-        DEBUG_PRINTF("ip_start: [%s]\r\n", str_tmp);
-        sprintf(p, "%d", DHCPD_CLIENT_IP_MAX);
-        ip4addr_aton(str_tmp, &ip_end);
-        DEBUG_PRINTF("ip_start: [%s]\r\n", str_tmp);
-
-        res = dhcp_server_start(netif, &ip_start, &ip_end);
-        if (res != 0)
-        {
-            DEBUG_PRINTF("dhcp_server_start res: %s.\r\n", res);
-        }
-    }
 
 _exit:
     LWIP_NETIF_UNLOCK();

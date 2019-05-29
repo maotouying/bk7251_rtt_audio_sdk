@@ -25,7 +25,7 @@
 #include "rw_pub.h"
 
 #include "lwip_netif_address.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #if CFG_ROLE_LAUNCH
 #include "role_launch.h"

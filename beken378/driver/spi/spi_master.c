@@ -16,7 +16,7 @@
 #endif
 #include "sys_config.h"
 #include "error.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #if CFG_USE_SPI_MASTER
 struct bk_spi_dev
@@ -177,7 +177,7 @@ static void bk_spi_tx_finish_callback(int port, void *param)
     if((spi_dev->total_len == 0) && ((spi_dev->flag & TX_FINISH_FLAG) == 0))
     {
         spi_dev->flag |= TX_FINISH_FLAG;
-        rtos_set_semaphore(&spi_dev->tx_sem);
+        bk_rtos_set_semaphore(&spi_dev->tx_sem);
         //BK_SPI_PRT("tx end\r\n");
     }
 }
@@ -259,7 +259,7 @@ int bk_spi_master_xfer(struct spi_message *msg)
     ASSERT(spi_dev != NULL);
     ASSERT(msg != NULL);
 
-    rtos_lock_mutex(&spi_dev->mutex);
+    bk_rtos_lock_mutex(&spi_dev->mutex);
     
     total_size = msg->recv_len + msg->send_len;
     if(total_size) 
@@ -292,7 +292,7 @@ int bk_spi_master_xfer(struct spi_message *msg)
         //os_printf("0 %d\r\n", total_size);
 
         /* wait tx finish */
-        rtos_get_semaphore(&spi_dev->tx_sem, BEKEN_NEVER_TIMEOUT);
+        bk_rtos_get_semaphore(&spi_dev->tx_sem, BEKEN_NEVER_TIMEOUT);
 
         //os_printf("1 %d\r\n", total_size);
 
@@ -318,7 +318,7 @@ int bk_spi_master_xfer(struct spi_message *msg)
         GLOBAL_INT_RESTORE();
     } 
 
-    rtos_unlock_mutex(&spi_dev->mutex);
+    bk_rtos_unlock_mutex(&spi_dev->mutex);
 
     return msg->recv_len;
 }
@@ -343,9 +343,9 @@ int bk_spi_master_init(UINT32 rate, UINT32 mode)
 
 
 #if CFG_SUPPORT_ALIOS
-    result = rtos_init_semaphore(&spi_dev->tx_sem, 0);
+    result = bk_rtos_init_semaphore(&spi_dev->tx_sem, 0);
 #else
-    result = rtos_init_semaphore(&spi_dev->tx_sem, 1);
+    result = bk_rtos_init_semaphore(&spi_dev->tx_sem, 1);
 #endif
     if (result != kNoErr)
     {
@@ -353,7 +353,7 @@ int bk_spi_master_init(UINT32 rate, UINT32 mode)
         goto _exit;
     }
 
-    result = rtos_init_mutex(&spi_dev->mutex);
+    result = bk_rtos_init_mutex(&spi_dev->mutex);
     if (result != kNoErr)
     {
         BK_SPI_PRT("[spi]: spi mutex init failed\n");
@@ -370,10 +370,10 @@ int bk_spi_master_init(UINT32 rate, UINT32 mode)
 
 _exit:
     if(spi_dev->mutex)
-        rtos_deinit_mutex(&spi_dev->mutex);
+        bk_rtos_deinit_mutex(&spi_dev->mutex);
     
     if(spi_dev->tx_sem)
-        rtos_deinit_semaphore(&spi_dev->tx_sem);
+        bk_rtos_deinit_semaphore(&spi_dev->tx_sem);
     
     if (spi_dev)
     {
@@ -392,15 +392,15 @@ int bk_spi_master_deinit(void)
     }
 
     if(spi_dev->mutex)
-        rtos_lock_mutex(&spi_dev->mutex);
+        bk_rtos_lock_mutex(&spi_dev->mutex);
     
     if(spi_dev->tx_sem)
-        rtos_deinit_semaphore(&spi_dev->tx_sem);
+        bk_rtos_deinit_semaphore(&spi_dev->tx_sem);
 
     if(spi_dev->mutex) 
     {
-        rtos_unlock_mutex(&spi_dev->mutex);
-        rtos_deinit_mutex(&spi_dev->mutex);
+        bk_rtos_unlock_mutex(&spi_dev->mutex);
+        bk_rtos_deinit_mutex(&spi_dev->mutex);
     }
     
     if (spi_dev)

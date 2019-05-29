@@ -228,6 +228,7 @@ int airkiss_lan_recv(const void *body, unsigned short length, const airkiss_conf
  *      >= 0：成功，请参考airkiss_lan_ret_t
  */
 int airkiss_lan_pack(airkiss_lan_cmdid_t ak_lan_cmdid, void *appid, void *deviceid, void *_datain, unsigned short inlength, void *_dataout, unsigned short *outlength, const airkiss_config_t *config);
+uint32_t airkiss_get_status(void);
 
 #ifdef __cplusplus
 }

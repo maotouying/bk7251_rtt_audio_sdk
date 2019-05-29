@@ -14,6 +14,8 @@
 #include "mp3common.h"
 #include "coder.h"
 #include "layer21.h"
+#include "bk_rtos_pub.h"
+
 
 MEDIA_CORE_T g_media_core = {0};
 
@@ -639,7 +641,7 @@ void media_msg_sender(void const *param_ptr)
 	MEDIA_MSG_T msg;
 
 	msg.id = (UINT32)param_ptr;
-	ret = rtos_push_to_queue(&g_media_core.io_queue, &msg, BEKEN_NO_WAIT);
+	ret = bk_rtos_push_to_queue(&g_media_core.io_queue, &msg, BEKEN_NO_WAIT);
 	if(kNoErr != ret)
 	{
 		APP_MUSIC_PRT("media_msg_sender_fail\r\n");
@@ -656,7 +658,7 @@ static void app_media_thread( void *arg )
 
 	while(1)
 	{	
-		ret = rtos_pop_from_queue(&g_media_core.io_queue, &msg, msg_timeout_ms);
+		ret = bk_rtos_pop_from_queue(&g_media_core.io_queue, &msg, msg_timeout_ms);
 		if(kNoErr == ret)
 		{
 			play_flag = media_app_msg_handler(msg.id);
@@ -679,13 +681,13 @@ static void media_thread_uninit(void)
 {
 	if(g_media_core.handle)
 	{
-		rtos_delete_thread(&g_media_core.handle);
+		bk_rtos_delete_thread(&g_media_core.handle);
 		g_media_core.handle = 0;
 	}
 	
 	if(g_media_core.io_queue)
 	{
-		rtos_deinit_queue(&g_media_core.io_queue);
+		bk_rtos_deinit_queue(&g_media_core.io_queue);
 		g_media_core.io_queue = 0;
 	}
 	
@@ -704,7 +706,7 @@ void media_thread_init(void)
 	g_media_core.queue_item_count = MEDIA_QITEM_COUNT;
 	g_media_core.stack_size = MEDIA_STACK_SIZE;
 	
-	ret = rtos_init_queue(&g_media_core.io_queue, 
+	ret = bk_rtos_init_queue(&g_media_core.io_queue, 
 							"media queue",
 							sizeof(MEDIA_MSG_T),
 							g_media_core.queue_item_count);
@@ -714,7 +716,7 @@ void media_thread_init(void)
 		goto fail;
 	}
 
-    ret = rtos_create_thread(&g_media_core.handle, 
+    ret = bk_rtos_create_thread(&g_media_core.handle, 
 				            THD_MEDIA_PRIORITY,
 				            "media_thread", 
 				            (beken_thread_function_t)app_media_thread, 

@@ -1,7 +1,7 @@
 #ifndef _DRIVER_AUDIO_IF_H_
 #define _DRIVER_AUDIO_IF_H_
 #include "sys_rtos.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #define AUDIO_BUFF_LEN 	       (6144)
 

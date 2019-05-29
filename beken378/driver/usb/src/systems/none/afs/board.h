@@ -5,7 +5,7 @@
 #include "mu_none.h"
 
 #include "include.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #if CFG_USB
 /**

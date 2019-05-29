@@ -22,7 +22,7 @@
 
 #if CONFIG_VOICE_CHANGER 
 #include "app_voice_changer.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "audio_device.h"
 #include "string.h"
 #include "stdio.h"

@@ -8,7 +8,7 @@
 
 #ifndef RADIUS_H
 #define RADIUS_H
-
+#include "lwip/def.h"
 /* RFC 2865 - RADIUS */
 
 #ifdef _MSC_VER

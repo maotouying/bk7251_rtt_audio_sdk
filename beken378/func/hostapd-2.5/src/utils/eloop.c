@@ -19,7 +19,7 @@
 #include "mac.h"
 
 #include "error.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "rw_pub.h"
 
 
@@ -679,7 +679,7 @@ void eloop_run(void)
 		}
 		
         if(wpah_queue) {
-            ret = rtos_pop_from_queue(&wpah_queue, &msg, timeout_ms);
+            ret = bk_rtos_pop_from_queue(&wpah_queue, &msg, timeout_ms);
             if(kNoErr == ret)
             {
             	flag = msg.argu;

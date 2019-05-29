@@ -5,6 +5,8 @@
 #include <rtdevice.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 #include "typedef.h"
 #include "icu_pub.h"
@@ -18,7 +20,7 @@
 
 #include "sys_config.h"
 #include "error.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #define I2S_DATA_LEN       0x100
 
@@ -31,7 +33,16 @@ i2s_level_t  i2s_fifo_level;
 {
 	struct rt_device *i2s_device;
 	struct i2s_message msg;	
-	uint32 i ;
+	uint32 i,rate,bit_length ;
+	uint32 i2s_mode = 0;
+	if(argc != 4)
+	{
+		rt_kprintf("---cmd error--\r\n");
+		return  RT_ERROR;
+	}
+	rate		= atoi(argv[2]);
+	bit_length	= atoi(argv[3]);
+	
 
 	msg.recv_len = I2S_DATA_LEN;
 	msg.send_len = I2S_DATA_LEN;
@@ -66,7 +77,7 @@ i2s_level_t  i2s_fifo_level;
 	}
 
 	/* open audio , set fifo level set sample rate/datawidth */
-	i2s_configure(FIFO_LEVEL_32, SAMPLE_RATE8K, DATA_WIDTH_16BIT, 0);
+	i2s_mode = i2s_mode| I2S_MODE| I2S_LRCK_NO_TURN| I2S_SCK_NO_TURN| I2S_MSB_FIRST| (0<<I2S_SYNC_LENGTH_BIT)| (0<<I2S_PCM_DATA_LENGTH_BIT);
 	
 	/* write and recieve */
 	if(strcmp(argv[1], "master") == 0)								
@@ -84,6 +95,7 @@ i2s_level_t  i2s_fifo_level;
 			msg.send_buf[i]= ((i+1)<<24) | ((i+1)<<16)  | ((i+1)<<8) | ((i+1)<<0);
 		}
 		
+		i2s_configure(FIFO_LEVEL_32, rate, bit_length, i2s_mode);
 		i2s_transfer(msg.send_buf, msg.recv_buf, I2S_DATA_LEN, MASTER);
 	
 		for(i=0; i<I2S_DATA_LEN; i++)
@@ -108,7 +120,8 @@ i2s_level_t  i2s_fifo_level;
 		{
 			msg.send_buf[i]= ((i+1)<<24) | ((i+1)<<16)  | ((i+1)<<8) | ((i+1)<<0) |0x80808080;
 		}
-
+		
+		i2s_configure(FIFO_LEVEL_32, rate, bit_length, i2s_mode);
 		i2s_transfer(msg.send_buf, msg.recv_buf, I2S_DATA_LEN, SLAVE);
 	
 		for(i=0; i<I2S_DATA_LEN; i++)

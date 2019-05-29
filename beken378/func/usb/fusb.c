@@ -5,7 +5,7 @@
 #include "usb_pub.h"
 #include "drv_model_pub.h"
 #include "sys_rtos.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "diskio.h"
 #include "usb_pub.h"
 
@@ -79,7 +79,7 @@ UINT32 fusb_init(void)
     }
 
 #ifdef FUSB_ENABLE_USER_MAIN
-    ret = rtos_create_thread(&usb_test_thread_handle,
+    ret = bk_rtos_create_thread(&usb_test_thread_handle,
                              5,
                              "usb_test_thread",
                              (beken_thread_function_t)usb_test_thread_main,

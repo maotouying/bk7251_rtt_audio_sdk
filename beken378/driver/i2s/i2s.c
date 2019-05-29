@@ -15,13 +15,14 @@
 #include "sys_config.h"
 #include "sys_ctrl.h"
 #include "error.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "mem_pub.h"
 #include "target_util_pub.h"
 #include "sys_ctrl_pub.h"
 #include "sys_ctrl.h"
 #include "icu.h"
 #include "gpio.h"
+#include "generic.h"
 
 #define RT_I2S_BIT_DEBUG
 #ifdef  RT_I2S_BIT_DEBUG
@@ -190,7 +191,7 @@ static void i2s_set_pcm_dlen(UINT8 val)
 
 static void i2s_set_freq_datawidth(i2s_rate_t *p_rate)
 {
-    UINT32 bitratio, value = 0;
+    UINT32 bitratio, value ,lrck_div,sys_clk= 0;
 	
     if( (p_rate->freq != 8000) && (p_rate->freq != 16000) && 
 		(p_rate->freq != 24000) && (p_rate->freq != 32000) &&(p_rate->freq != 48000)&&
@@ -198,14 +199,75 @@ static void i2s_set_freq_datawidth(i2s_rate_t *p_rate)
     {
         return;
     }
-    if(p_rate->datawidth > 32)
+		
+	/*set irck div*/	
+	if(p_rate->datawidth == 8)
+	{
+		lrck_div = 7;
+	}
+	else if(p_rate->datawidth == 16)
     {
-        return;
+        lrck_div = 15;
     }
-
-    bitratio = ((I2S_SYS_CLK / (p_rate->freq * p_rate->datawidth ) / 4) - 1) & 0xFF;
+	else if(p_rate->datawidth == 24)
+    {
+        lrck_div = 23;
+    }	
+    else 
+    {
+        lrck_div = 31;
+    }
+	
+	/*set system  clock*/
+	if(p_rate->freq == 8000)
+	{
+		if(p_rate->datawidth == 24)
+		{
+			sys_clk = 48384000;
+			sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_AUDIO_PLL, &sys_clk);
+		}
+		else 
+		{
+			sys_clk = 48128000;
+			sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_AUDIO_PLL, &sys_clk);		
+		}
+	}
+	else if (p_rate->freq == 16000)
+	{
+		if((p_rate->datawidth == 16) || (p_rate->datawidth == 8))
+		{
+			sys_clk = 48128000;
+			sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_AUDIO_PLL, &sys_clk);	
+		}
+		else
+		{
+			sys_clk = 49152000;
+			sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_AUDIO_PLL, &sys_clk);
+		}
+	}
+	else if(p_rate->freq == 44100)
+	{	
+		sys_clk = 50803200;
+		sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_AUDIO_PLL, &sys_clk);
+	}
+	else
+	{
+		if(p_rate->datawidth == 24)
+		{
+			sys_clk = 50688000;
+			sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_AUDIO_PLL, &sys_clk);
+		}
+		else
+		{
+			sys_clk = 49152000;
+			sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_AUDIO_PLL, &sys_clk);
+		}
+	}
+	
+	/*set bit clock divd*/
+    bitratio = MAX((NUMBER_ROUND_UP((sys_clk / 2 ), (p_rate->freq  * 2 * (lrck_div + 1))) - 1), 5);
 	value = value 	| ((p_rate->datawidth - 1) << DATALEN_POSI)
-            		| ((p_rate->datawidth - 1) << SMPRATIO_POSI)
+            		| (lrck_div << SMPRATIO_POSI)
             		| (bitratio << BITRATIO_POSI);//this value is unused in slave mode
         
     REG_WRITE(PCM_CTRL, value);
@@ -488,7 +550,6 @@ void i2s_init(void)
 {
     intc_service_register(IRQ_I2S_PCM, PRI_IRQ_I2S_PCM, i2s_isr);
     sddev_register_dev(I2S_DEV_NAME, &i2s_op);
-
 }
 
 
@@ -513,7 +574,7 @@ static void i2s_disable_interrupt(void)
 
 
 
- UINT32 i2s_ctrl(UINT32 cmd, void *param)
+static UINT32 i2s_ctrl(UINT32 cmd, void *param)
 {
     UINT8 ret = I2S_SUCCESS;
 
@@ -574,7 +635,7 @@ static void i2s_disable_interrupt(void)
         i2s_txint_mode(*(UINT8 *)param);
 		break;
 	case I2S_CMD_GET_BUSY:
-        (*(UINT8 *)param) = i2s_get_busy;
+         i2s_get_busy();
 		break;
 	case I2S_CMD_ENABLE_INTERRUPT:
 		i2s_enable_interrupt();
@@ -607,7 +668,7 @@ UINT32 i2s_configure(UINT32 fifo_level, UINT32 sample_rate, UINT32 bits_per_samp
 	rate.datawidth = bits_per_sample;
 	rate.freq = sample_rate;
 /*
-	mdoe:
+	mode:
 	bit0~2: 	mode & 0x7  	000:I2S
 						 		001:Left Justified
 						 		010:Right Justified
@@ -649,16 +710,14 @@ UINT32 i2s_configure(UINT32 fifo_level, UINT32 sample_rate, UINT32 bits_per_samp
 
 	/* set synclen */
 	param = (mode & 0x700);
+	param = param >> 8;
     i2s_ctrl(I2S_CMD_SET_SCK_SYNCLEN, (void *)&param);		
 
 	/* set pcm_dlen */
 	param = (mode & 0x7000);
+	param = param >> 12;	
     i2s_ctrl(I2S_CMD_SET_PCM_DLEN, (void *)&param);	
-
-	/* set freq_datawidth */
-
-    i2s_ctrl(I2S_CMD_SET_FREQ_DATAWIDTH, (void *)&rate);	
-
+	
 	/* set txfifo level */
 	param = fifo_level;
     i2s_ctrl(I2S_CMD_TXINT_MODE, (void *)&param);	
@@ -676,12 +735,15 @@ UINT32 i2s_configure(UINT32 fifo_level, UINT32 sample_rate, UINT32 bits_per_samp
     i2s_ctrl(I2S_CMD_RXOVR_EN, (void *)&param);	
 
 	i2s_gpio_configuration();  //set gpio
-
+	
 	param = REG_READ(SCTRL_BLOCK_EN_CFG);
 	param = (param & (~(0x0FFFUL<<20))) |( BLOCK_EN_WORD_PWD<<20 ) | (1<<16) |(1<<17);
 	REG_WRITE(SCTRL_BLOCK_EN_CFG, param);    // audio pll audio enable
 
     sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_SET_ANALOG6, NULL);//  DPLL AUDIO OPEN, DPLL divider
+
+	/* set freq_datawidth */
+    i2s_ctrl(I2S_CMD_SET_FREQ_DATAWIDTH, (void *)&rate);
 
 	/*	clear state	*/
 	REG_WRITE(PCM_STAT, 0x0000FFFF);
@@ -734,18 +796,14 @@ UINT32 i2s_transfer(UINT32 *i2s_send_buf , UINT32 *i2s_recv_buf, UINT32 count, U
 
 	while(!i2s_trans.trans_done )
 	{
-
 	}
 	
 	delay_ms(1000);
 	i2s_trans.trans_done = 0;
 	
-	i2s_ctrl(I2S_CMD_DISABLE_I2S, NULL);	
-	//i2s_ctrl(I2S_CMD_TXFIFO_CLR , NULL);
-
+	i2s_ctrl(I2S_CMD_DISABLE_I2S, NULL);
 
 	return i2s_trans.trans_done;
-
 }
 
 void i2s_isr(void)
@@ -758,53 +816,6 @@ void i2s_isr(void)
 	rxint  = i2s_status & 0x01;
 	txint0 = i2s_status & 0x02;
 		
-#if 0	
-	if(txint0)
-	{
-		if(i2s_trans.tx_remain_data_cnt == 0)
-		{
-			i = 0;
-			i2s_trans.trans_done = 1;
-			//i2s_ctrl(I2S_CMD_TXINT_EN, (void*)&i);
-		}
-		else
-		{
-			fifo_empty_num = 16 ;
-			
-			if(i2s_trans.tx_remain_data_cnt > fifo_empty_num)
-			{
-				data_num = fifo_empty_num;
-			}
-			else
-			{
-				data_num = i2s_trans.tx_remain_data_cnt;
-			}
-			
-			if(i2s_trans.p_tx_buf == NULL)
-			{
-				for(i=0; i<data_num; i++)
-				{
-					REG_WRITE(PCM_DAT0,0xEEEEEEEE);
-				}
-			}
-			else
-			{
-				for(i=0; i<data_num; i++)
-				{
-					REG_WRITE(PCM_DAT0,*i2s_trans.p_tx_buf);
-					i2s_trans.p_tx_buf ++;
-				}
-			}
-			
-			i2s_trans.tx_remain_data_cnt--;
-
-		}
-		i2s_status |= 0x2;
-	}
-
-#endif
-
-
 	if(txint0)
 	{
 		switch(i2s_fifo_level.tx_level)
@@ -929,116 +940,4 @@ void i2s_isr(void)
 	REG_WRITE(PCM_STAT,i2s_status);
 
 }
-
-#if 0
-static UINT8 flag_i2s_active =0;
-
-static void i2s_clk_config(UINT8 enable)
-{
-	UINT32 param;
-	UINT32 cmd;
-
-	if(enable)
-		cmd = CMD_CLK_PWR_UP;
-	else
-		cmd = CMD_CLK_PWR_DOWN;
-
-	param = PWD_I2S_PCM_CLK_BIT;
-	sddev_control(ICU_DEV_NAME, cmd, &param);
-}
-
-static void i2s_hw_init(void)
-{
-	UINT32 value_cfg2,value_cn;
-	UINT32 param = GFUNC_MODE_I2S;
-	sddev_control(GPIO_DEV_NAME, CMD_GPIO_ENABLE_SECOND, &param);
-	
-	i2s_clk_config(1);
-	
-	value_cfg2 = (2 << TXFIFO_TXFIFO_MODE) | (0 << TXFIFO_DOWN_SMPRATIO);
-	REG_WRITE(PCM_CFG2,value_cfg2);
-	value_cn = (1 << TX_FIFO0_LEVEL_POSI) | (1 << RX_FIFO_LEVEL_POSI);
-	REG_WRITE(PCM_CN,value_cfg2);
-}
-
-static void i2s_active(int enable)
-{
-    UINT32 value_ctrl, value_cn,sts,param;
-
-	os_printf("====i2s active:%x===\r\n",enable);
-
-    value_ctrl = REG_READ(PCM_CTRL);
-    value_cn = REG_READ(PCM_CN);
-    if(enable)
-    {	
-    	flag_i2s_active =1;
-        value_ctrl |= I2S_PCM_EN;
-		value_cn |= TX_INT0_EN | TX_UDF0_EN|TX_INT1_EN | TX_UDF1_EN|TX_INT2_EN | TX_UDF2_EN;
-    }
-    else
-    {
-    	flag_i2s_active = 0;
-        value_ctrl &= ~I2S_PCM_EN;
-		value_cn &= ~( TX_INT0_EN | TX_UDF0_EN|TX_INT1_EN | TX_UDF1_EN|TX_INT2_EN |TX_UDF2_EN| RX_INT_EN | RX_OVF_EN);	
-    }
-    REG_WRITE(PCM_CTRL, value_ctrl);
-    REG_WRITE(PCM_CN, value_cn);
-	
-   sts = REG_READ(PCM_STAT);
-   REG_WRITE(PCM_STAT,sts);
-   
-   param = IRQ_I2S_PCM_BIT;
-   if(enable)
-   		sddev_control(ICU_DEV_NAME, CMD_ICU_INT_ENABLE, &param);
-   else
-    	sddev_control(ICU_DEV_NAME, CMD_ICU_INT_DISABLE, &param);
-  	
-}
-
-static void i2s_rx_active(int enable)
-{
-    UINT32 value_cn;
-
-    value_cn = REG_READ(PCM_CN);
-    if(enable)
-    {
-        value_cn |= (RX_INT_EN | RX_OVF_EN | RX_FIFO_CLR);
-    }
-    else
-    {
-        value_cn &= ~(RX_INT_EN | RX_OVF_EN);
-    }
-    REG_WRITE(PCM_CN, value_cn);
-}
-/*default to slave mode*/
-
-
-static void i2s_set_level(i2s_level_t *p_level)
-{
-    UINT32 value;
-
-    value = REG_READ(PCM_CN);
-
-    value &= ~((RX_FIFO_LEVEL_MASK << RX_FIFO_LEVEL_POSI) | (TX_FIFO0_LEVEL_MASK << TX_FIFO0_LEVEL_POSI));
-    value |= ((p_level->rx_level << RX_FIFO_LEVEL_POSI) | (p_level->tx_level << TX_FIFO0_LEVEL_POSI));
-
-    REG_WRITE(PCM_CN, value);
-}
-
-void i2s_init(void)
-{
-    intc_service_register(IRQ_I2S_PCM, PRI_IRQ_I2S_PCM, i2s_isr);
-    sddev_register_dev(I2S_DEV_NAME, &i2s_op);
-}
-
-void i2s_exit(void)
-{
-    sddev_unregister_dev(I2S_DEV_NAME);
-}
-
-UINT8 is_i2s_active(void)
-{
-	return flag_i2s_active;
-}
-#endif
 

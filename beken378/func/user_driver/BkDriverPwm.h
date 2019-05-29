@@ -30,23 +30,81 @@
 #define __BEKENDRIVERPWM_H__
 
 #pragma once
-#include "pwm_pub.h"
 #include "include.h"
+#include "bk_rtos_pub.h"
+/** @addtogroup BK_PLATFORM
+  * @{
+  */
 
+/** @defgroup BK_PWM _BK_ PWM Driver
+  * @brief  Pulse-Width Modulation (PWM) Functions
+  * @{
+  */
+
+/******************************************************
+ *                   Enumerations
+ ******************************************************/
 typedef enum
 {
-	PWM_CHANNEL0_P6= 0,
-	PWM_CHANNEL1_P7,
-	PWM_CHANNEL2_P8,
-	PWM_CHANNEL3_P9,
-	PWM_CHANNEL4_P24,
-	PWM_CHANNEL5_P26,
+    BK_PWM_0,
+    BK_PWM_1,
+    BK_PWM_2,
+    BK_PWM_3,
+    BK_PWM_4,
+    BK_PWM_5,
     BK_PWM_MAX, /* Denotes the total number of PWM port aliases. Not a valid PWM alias */
-} pwm_channel_t;
+    BK_PWM_NONE,
+} bk_pwm_t;
+
+/******************************************************
+ *                 Type Definitions
+ ******************************************************/
+
+/******************************************************
+*                 Function Declarations
+******************************************************/
 
 
-OSStatus bk_pwm_initialize(pwm_param_t *pwm, pwm_channel_t channel,PFUNC p_int_func,UINT8 src_clk);
-OSStatus bk_pwm_set_duty_end(pwm_param_t *pwm,UINT32 duty_cycle,UINT32 end_value);
-OSStatus bk_pwm_enable(pwm_param_t *pwm,UINT8 enable);
+
+/**@brief Initialises a PWM pin
+ *
+ * @note  Prepares a Pulse-Width Modulation pin for use.
+ * Does not start the PWM output (use @ref bk_pwm_start).
+ *
+ * @param pwm        : the PWM interface which should be initialised
+ * @param frequency  : Output signal frequency in Hertz
+ * @param duty_cycle : Duty cycle of signal as a floating-point percentage (0.0 to 100.0)
+ *
+ * @return    kNoErr        : on success.
+ * @return    kGeneralErr   : if an error occurred with any step
+ */
+OSStatus bk_pwm_initialize(bk_pwm_t pwm, uint32_t frequency, float duty_cycle);
+
+
+/**@brief Starts PWM output on a PWM interface
+ *
+ * @note  Starts Pulse-Width Modulation signal output on a PWM pin
+ *
+ * @param pwm        : the PWM interface which should be started
+ *
+ * @return    kNoErr        : on success.
+ * @return    kGeneralErr   : if an error occurred with any step
+ */
+OSStatus bk_pwm_start(bk_pwm_t pwm);
+
+
+/**@brief Stops output on a PWM pin
+ *
+ * @note  Stops Pulse-Width Modulation signal output on a PWM pin
+ *
+ * @param pwm        : the PWM interface which should be stopped
+ *
+ * @return    kNoErr        : on success.
+ * @return    kGeneralErr   : if an error occurred with any step
+ */
+OSStatus bk_pwm_stop(bk_pwm_t pwm);
+
+/** @} */
+/** @} */
 
 #endif

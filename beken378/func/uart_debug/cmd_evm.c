@@ -4,10 +4,12 @@
 #include "str_pub.h"
 #include "uart_debug_pub.h"
 #include "tx_evm_pub.h"
+#include "reg_mdm_cfg.h"
 
 #include "udebug.h"
 #include "uart_pub.h"
 #include "schedule_pub.h"
+#include "sys_ctrl_pub.h"
 
 #if CFG_SUPPORT_CALIBRATION
 #include "bk7011_cal_pub.h"
@@ -19,6 +21,9 @@
 
 #include "ate_app.h"
 #include "param_config.h"
+
+#include "arm_arch.h"
+#include "sys_ctrl_pub.h"
 
 typedef enum {
     TXEVM_E_STOP     = 0,
@@ -34,7 +39,8 @@ typedef enum {
     TXEVM_G_OPT,
     TXEVM_G_TEMP_FLASH,
     TXEVM_G_XTAL_FLASH,
-    TXEVM_G_DIFF_FLASH,    
+    TXEVM_G_DIFF_FLASH,
+    TXEVM_G_GET_SW_VER, 
     TXEVM_G_MAX
 } TXEVM_G_TYPE;
 
@@ -99,6 +105,17 @@ static UINT32 evm_translate_tx_rate(UINT32 rate)
     return param;
 }
 #endif
+extern uint8 soft_version[9];
+uint8 HexToChar(uint8 temp)
+{
+    uint8 dst;
+    if (temp < 10){
+        dst = temp + '0';
+    }else{
+        dst = temp -10 +'A';
+    }
+    return dst;
+}
 
 /*txevm [-m mode] [-c channel] [-l packet-length] [-r physical-rate]*/
 int do_evm(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
@@ -109,11 +126,14 @@ int do_evm(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
     UINT8 fail = 0;
     UINT32 packet_len = EVM_DEFUALT_PACKET_LEN;
     UINT32 channel = EVM_DEFUALT_CHANNEL;
+    UINT32 ble_channel = EVM_DEFUALT_BLE_CHANNEL;
     UINT32 mode = EVM_DEFUALT_MODE;
     UINT32 rate = EVM_DEFUALT_RATE;
     UINT32 bandwidth = EVM_DEFUALT_BW;
     UINT32 pwr_mod = EVM_DEFUALT_PWR_MOD;
+    UINT32 ble_pwr_mod = EVM_DEFUALT_BLE_PWR_MOD;
     UINT32 pwr_pa = EVM_DEFUALT_PWR_PA; 
+    UINT32 ble_pwr_pa = EVM_DEFUALT_PWR_PA; 
     UINT32 modul_format = EVM_DEFUALT_MODUL_FORMAT;
     UINT32 guard_i_tpye = EVM_DEFUALT_GI_TYPE;
     UINT32 single_carrier = EVM_DEFUALT_SINGLE_CARRIER;    
@@ -123,7 +143,16 @@ int do_evm(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
     UINT32 arg_id = 1;
     UINT32 arg_cnt = argc;
     UINT32 lpfcapcal_i = 0x80, lpfcapcal_q = 0x80;
-    UINT32 xtal = 0x10;    
+    UINT32 xtal = 0x10;
+    UINT32 is_ble_test = 0;;
+    UINT32 ble_test = 0;
+    UINT32 reg;
+    SC_TYPE_T single_carrier_type = SINGLE_CARRIER_11G;
+	int i;
+
+#define     ENTRY_RF_CALI_MODE_STEP1       0x1
+#define     ENTRY_RF_CALI_MODE_STEP2       0x2
+    static UINT32 entry_rf_cali_mode = 0;
 
     if(arg_cnt == 1)
         return 0;
@@ -157,7 +186,14 @@ int do_evm(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
                 break;
 
             case 'c':
-                channel = os_strtoul(argv[arg_id + 1], NULL, 10);
+                if(is_ble_test)
+                {
+                    ble_channel = os_strtoul(argv[arg_id + 1], NULL, 10);
+                }
+                else
+                {
+                    channel = os_strtoul(argv[arg_id + 1], NULL, 10);
+                }
                 break;
 
             case 'l':
@@ -204,6 +240,13 @@ int do_evm(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
                         cfg_load_mac(&sysmac[0]);
                         os_printf("sys MAC:%02x:%02x:%02x:%02x:%02x:%02x\r\n",
                             sysmac[0], sysmac[1], sysmac[2], sysmac[3], sysmac[4], sysmac[5]);
+                        {
+                            if(entry_rf_cali_mode == 0)
+                            {
+                                entry_rf_cali_mode = ENTRY_RF_CALI_MODE_STEP1;
+                            }
+                        }
+
                     }else if(op == TXEVM_G_OPT) {
                         manual_cal_show_otp_flash();
                     }else if(op == TXEVM_G_TEMP_FLASH) {
@@ -211,6 +254,19 @@ int do_evm(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
                     }else if(op == TXEVM_G_DIFF_FLASH) {
                         manual_cal_load_differ_tag_from_flash();
                     }
+                    #if CFG_SUPPORT_ALIOS 
+                    else if(op == TXEVM_G_GET_SW_VER) {
+                    
+						os_printf("alios sw ver:%s\r\n", aos_get_app_version());
+						os_printf("midea sw ver:");
+						for (i = 0; i < 9; i++)
+						{
+							os_printf("%c", HexToChar((soft_version[i]>>4)&0x0F));
+							os_printf("%c", HexToChar(soft_version[i]&0x0F));
+						}
+						os_printf("\r\n");
+                    }
+                    #endif
                     #if (CFG_SOC_NAME != SOC_BK7231)
                     else if(op == TXEVM_G_XTAL_FLASH) {
                         manual_cal_load_xtal_tag_from_flash();
@@ -237,13 +293,26 @@ int do_evm(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
                 break;
 
             case 'p': {  // power: mod, pa
-                pwr_mod = (os_strtoul(argv[arg_id + 1], NULL, 10));
-                pwr_pa = (os_strtoul(argv[arg_id + 2], NULL, 10));
-                arg_cnt -= 1;
-                arg_id += 1;
-                os_printf("set pwr: gain:%d, unused:%d, rate:%d\r\n", pwr_mod, pwr_pa, g_rate);
-                rwnx_cal_set_txpwr(pwr_mod, g_rate);
-                return 0;
+                if(is_ble_test)
+                {
+                    ble_pwr_mod = (os_strtoul(argv[arg_id + 1], NULL, 10));
+                    ble_pwr_pa = (os_strtoul(argv[arg_id + 2], NULL, 10));
+                    arg_cnt -= 1;
+                    arg_id += 1;
+                    os_printf("set pwr: gain:%d, unused:%d, rate:11\r\n", ble_pwr_mod, ble_pwr_pa);
+                    rwnx_cal_set_txpwr(ble_pwr_mod, EVM_DEFUALT_B_RATE);
+                    return 0;
+                }
+                else
+                {
+                    pwr_mod = (os_strtoul(argv[arg_id + 1], NULL, 10));
+                    pwr_pa = (os_strtoul(argv[arg_id + 2], NULL, 10));
+                    arg_cnt -= 1;
+                    arg_id += 1;
+                    os_printf("set pwr: gain:%d, unused:%d, rate:%d\r\n", pwr_mod, pwr_pa, g_rate);
+                    rwnx_cal_set_txpwr(pwr_mod, g_rate);
+                    return 0;
+                }
                 }
 
             case 's': { // save txpwr: rate:b or g? channel mod pa
@@ -291,6 +360,22 @@ int do_evm(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
                         #if CFG_USE_TEMPERATURE_DETECT
                         temp_detect_uninit();
                         #endif
+
+                        if(entry_rf_cali_mode == ENTRY_RF_CALI_MODE_STEP1)
+                        {
+                            entry_rf_cali_mode |= ENTRY_RF_CALI_MODE_STEP2;
+                        }
+                        
+                        // change mode to mamual mode
+                        os_printf("rf_cali_mode flag:%x\r\n", entry_rf_cali_mode);
+
+                        if(entry_rf_cali_mode == (ENTRY_RF_CALI_MODE_STEP2 | ENTRY_RF_CALI_MODE_STEP1))
+                        {
+                            os_printf("entry mamual mode\r\n");
+                            bk7011_set_rfcali_mode(CALI_MODE_MANUAL);
+                            entry_rf_cali_mode = 0;
+                        }
+                        
                     }
                     return 0;
                 } else {
@@ -311,12 +396,30 @@ int do_evm(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
             }
 
             case 'x': {  // xtal_cali
-            xtal = os_strtoul(argv[arg_id + 1], NULL, 10);;
+            xtal = os_strtoul(argv[arg_id + 1], NULL, 10);
             os_printf("xtal_cali:%d\r\n", xtal);
             manual_cal_set_xtal(xtal);
             return 0;
             }            
 #endif // (CFG_SOC_NAME != SOC_BK7231)
+            case 'o': {
+                is_ble_test = 1;
+                ble_test = os_strtoul(argv[arg_id + 1], NULL, 10); // 1:start 0:stop                
+            }
+            break;
+            
+#if CFG_USE_USB_CHARGE
+#if (CFG_SOC_NAME == SOC_BK7221U)
+            case 'a': {
+                extern void usb_charger_calibration(UINT32);
+                UINT32 charge_cal_type ;
+                charge_cal_type = os_strtoul(argv[arg_id + 1], NULL, 10);
+                usb_charger_calibration(charge_cal_type);
+                return 0;
+            }
+            break;
+#endif
+#endif
             default:
                 fail = 1;
                 break;
@@ -373,44 +476,81 @@ int do_evm(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
     }
 
     /*step2, handle*/
-    if(mode)
+    if(!is_ble_test)
     {
-        evm_bypass_mac_set_tx_data_length(modul_format, packet_len);
-        if(rate <= 54) {
-            modul_format = 0;
-        }
-        evm_bypass_mac_set_rate_mformat(rate, modul_format);
-        evm_bypass_mac_set_channel(channel);
-        evm_set_bandwidth(bandwidth);
-        evm_bypass_mac_set_guard_i_type(guard_i_tpye);
-        
-        evm_bypass_mac_test();
+        //sys_ctrl_0x42[6:4]=SCTRL_DIGTAL_VDD=5
+        reg = 5;
+        sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_SET_VDD_VALUE, &reg);
+
+        if(mode)
+        {
+            
+            mdm_scramblerctrl_set(0x95);
+            evm_bypass_mac_set_tx_data_length(modul_format, packet_len);
+            if(rate <= 54) {
+                modul_format = 0;
+            }
+            evm_bypass_mac_set_rate_mformat(rate, modul_format);
+            evm_bypass_mac_set_channel(channel);
+            evm_set_bandwidth(bandwidth);
+            evm_bypass_mac_set_guard_i_type(guard_i_tpye);
+            
+            evm_bypass_mac_test();
 
 #if CFG_SUPPORT_CALIBRATION
-        CHECK_OPERATE_RF_REG_IF_IN_SLEEP();
-        rwnx_cal_set_txpwr_by_rate(evm_translate_tx_rate(rate), test_mode);
-        CHECK_OPERATE_RF_REG_IF_IN_SLEEP_END();
+            CHECK_OPERATE_RF_REG_IF_IN_SLEEP();
+            rwnx_cal_set_txpwr_by_rate(evm_translate_tx_rate(rate), test_mode);
+            CHECK_OPERATE_RF_REG_IF_IN_SLEEP_END();
 #endif
-        evm_start_bypass_mac();
+            rwnx_cal_set_reg_adda_ldo(1);
+            evm_start_bypass_mac();
 
-        if(single_carrier)
-            evm_bypass_set_single_carrier();
-        
-        if(trigger_pll) {
-            os_printf("cal dpll and open int\r\n");
-            sctrl_cali_dpll(0);
-            sctrl_dpll_int_open();
-        }
+            if(g_rate == EVM_DEFUALT_B_RATE)
+            {
+                single_carrier_type = SINGLE_CARRIER_11B;
+            }
+            else
+            {
+                single_carrier_type = SINGLE_CARRIER_11G;
+            }
+            if(single_carrier)
+                evm_bypass_set_single_carrier(single_carrier_type);
             
+            if(trigger_pll) {
+                os_printf("cal dpll and open int\r\n");
+                sctrl_cali_dpll(0);
+                sctrl_dpll_int_open();
+            }
+            
+        }
+        else
+        {
+            evm_via_mac_set_rate((HW_RATE_E)rate, 1);
+            evm_set_bandwidth(bandwidth);
+            evm_via_mac_set_channel(channel);
+
+            evm_via_mac_begin();
+        }
+        
     }
     else
     {
-        evm_via_mac_set_rate((HW_RATE_E)rate, 1);
-        evm_set_bandwidth(bandwidth);
-        evm_via_mac_set_channel(channel);
-
-        evm_via_mac_begin();
+        if(ble_test)
+        {
+            //os_printf("ble_test\r\n");
+            single_carrier_type = SINGLE_CARRIER_BLE;
+            
+            rwnx_cal_set_txpwr(ble_pwr_mod, EVM_DEFUALT_BLE_RATE);
+            evm_bypass_ble_test_start(ble_channel);
+            if(single_carrier)
+                evm_bypass_set_single_carrier(single_carrier_type);
+        }
+        else
+        {
+            evm_bypass_ble_test_stop();
+        }
     }
+    
 #endif // CFG_TX_EVM_TEST 
 
     return 0;

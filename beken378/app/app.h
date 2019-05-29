@@ -6,7 +6,7 @@
 #if (!CFG_SUPPORT_ALIOS)
 #include "sys_rtos.h"
 #endif
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 //#define APP_DEBUG
 

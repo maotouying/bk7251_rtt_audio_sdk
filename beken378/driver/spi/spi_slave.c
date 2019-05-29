@@ -16,7 +16,7 @@
 #endif
 #include "sys_config.h"
 #include "error.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #if CFG_USE_SPI_SLAVE
 
@@ -104,7 +104,7 @@ static void bk_spi_slave_spi_rx_callback(int is_rx_end, void *param)
     {
         // only rx end happened, wake up rx_semp
         //os_printf("----> rx end\r\n");
-        rtos_set_semaphore(&spi_slave_dev->rx_sem);
+        bk_rtos_set_semaphore(&spi_slave_dev->rx_sem);
     }
     //REG_WRITE((0x00802800+(18*4)), 0x00);
 }
@@ -214,7 +214,7 @@ static void bk_spi_slave_tx_finish_callback(int port, void *param)
         if((spi_slave_dev->flag & TX_FINISH_FLAG) == 0)
         {
             spi_slave_dev->flag |= TX_FINISH_FLAG;
-            rtos_set_semaphore(&spi_slave_dev->tx_sem);
+            bk_rtos_set_semaphore(&spi_slave_dev->tx_sem);
         }
     }
 }
@@ -303,7 +303,7 @@ int bk_spi_slave_xfer(struct spi_message *msg)
     ASSERT(spi_slave_dev != NULL);
     ASSERT(msg != NULL);
 
-    rtos_lock_mutex(&spi_slave_dev->mutex);
+    bk_rtos_lock_mutex(&spi_slave_dev->mutex);
 
     recv_ptr = msg->recv_buf;
     recv_len = msg->recv_len;
@@ -322,7 +322,7 @@ int bk_spi_slave_xfer(struct spi_message *msg)
         spi_ctrl(CMD_SPI_TXINT_EN, (void *)&param);
 
         os_printf("0 %p-%d\r\n", send_ptr, send_len);
-        rtos_get_semaphore(&spi_slave_dev->tx_sem, BEKEN_NEVER_TIMEOUT);
+        bk_rtos_get_semaphore(&spi_slave_dev->tx_sem, BEKEN_NEVER_TIMEOUT);
 
         param = 0;
         spi_ctrl(CMD_SPI_TXINT_EN, (void *)&param);
@@ -353,7 +353,7 @@ int bk_spi_slave_xfer(struct spi_message *msg)
             len = bk_spi_slave_get_rx_data(recv_ptr, recv_len);
             if(len == 0)
             {
-                err = rtos_get_semaphore(&spi_slave_dev->rx_sem, RT_WAITING_FOREVER);
+                err = bk_rtos_get_semaphore(&spi_slave_dev->rx_sem, RT_WAITING_FOREVER);
                 if(err != kNoErr)
                     break;
             }
@@ -364,18 +364,19 @@ int bk_spi_slave_xfer(struct spi_message *msg)
         
         // clear all rx semp for this time
         do {
-            err = rtos_get_semaphore(&spi_slave_dev->rx_sem, 0);
+            err = bk_rtos_get_semaphore(&spi_slave_dev->rx_sem, 0);
         }
         while(err == kNoErr);
 
         param = len;
     }
 
-    rtos_unlock_mutex(&spi_slave_dev->mutex);
+    bk_rtos_unlock_mutex(&spi_slave_dev->mutex);
 
     return param;
 }
 
+int bk_spi_slave_deinit(void);
 int bk_spi_slave_init(UINT32 rate, UINT32 mode)
 {
     OSStatus result = 0;
@@ -396,9 +397,9 @@ int bk_spi_slave_init(UINT32 rate, UINT32 mode)
 
 
 #if CFG_SUPPORT_ALIOS
-    result = rtos_init_semaphore(&spi_slave_dev->tx_sem, 0);
+    result = bk_rtos_init_semaphore(&spi_slave_dev->tx_sem, 0);
 #else
-    result = rtos_init_semaphore(&spi_slave_dev->tx_sem, 1);
+    result = bk_rtos_init_semaphore(&spi_slave_dev->tx_sem, 1);
 #endif
     if (result != kNoErr)
     {
@@ -407,9 +408,9 @@ int bk_spi_slave_init(UINT32 rate, UINT32 mode)
     }
 
 #if CFG_SUPPORT_ALIOS
-    result = rtos_init_semaphore(&spi_slave_dev->rx_sem, 0);
+    result = bk_rtos_init_semaphore(&spi_slave_dev->rx_sem, 0);
 #else
-    result = rtos_init_semaphore(&spi_slave_dev->rx_sem, 1);
+    result = bk_rtos_init_semaphore(&spi_slave_dev->rx_sem, 1);
 #endif
     if (result != kNoErr)
     {
@@ -417,7 +418,7 @@ int bk_spi_slave_init(UINT32 rate, UINT32 mode)
         goto _exit;
     }
 
-    result = rtos_init_mutex(&spi_slave_dev->mutex);
+    result = bk_rtos_init_mutex(&spi_slave_dev->mutex);
     if (result != kNoErr)
     {
         BK_SPI_PRT("[spi]: spi mutex init failed\n");
@@ -452,13 +453,13 @@ int bk_spi_slave_init(UINT32 rate, UINT32 mode)
 
 _exit:
     if(spi_slave_dev->mutex)
-        rtos_deinit_mutex(&spi_slave_dev->mutex);
+        bk_rtos_deinit_mutex(&spi_slave_dev->mutex);
     
     if(spi_slave_dev->tx_sem)
-        rtos_deinit_semaphore(&spi_slave_dev->tx_sem);
+        bk_rtos_deinit_semaphore(&spi_slave_dev->tx_sem);
 
     if(spi_slave_dev->rx_sem)
-        rtos_deinit_semaphore(&spi_slave_dev->rx_sem);
+        bk_rtos_deinit_semaphore(&spi_slave_dev->rx_sem);
 
     if(spi_slave_dev->rx_fifo)
         os_free(spi_slave_dev->rx_fifo);
@@ -483,21 +484,21 @@ int bk_spi_slave_deinit(void)
     bk_spi_slave_unconfigure();
 
     if(spi_slave_dev->mutex)
-        rtos_lock_mutex(&spi_slave_dev->mutex);
+        bk_rtos_lock_mutex(&spi_slave_dev->mutex);
     
     if(spi_slave_dev->tx_sem)
-        rtos_deinit_semaphore(&spi_slave_dev->tx_sem);
+        bk_rtos_deinit_semaphore(&spi_slave_dev->tx_sem);
 
     if(spi_slave_dev->rx_sem)
-        rtos_deinit_semaphore(&spi_slave_dev->rx_sem);
+        bk_rtos_deinit_semaphore(&spi_slave_dev->rx_sem);
 
     if(spi_slave_dev->rx_fifo)
         os_free(spi_slave_dev->rx_fifo);
 
     if(spi_slave_dev->mutex) 
     {
-        rtos_unlock_mutex(&spi_slave_dev->mutex);
-        rtos_deinit_mutex(&spi_slave_dev->mutex);
+        bk_rtos_unlock_mutex(&spi_slave_dev->mutex);
+        bk_rtos_deinit_mutex(&spi_slave_dev->mutex);
     }
     
     os_free(spi_slave_dev);
@@ -639,7 +640,7 @@ void spi_slave_test(void *parameter)
 		uint8_t buffer[32];
 		int i;
 
-        rtos_delay_milliseconds(10000);
+        bk_rtos_delay_milliseconds(10000);
         
 		os_printf("[spislave]: spislave test begin\n");
 		for(i = 0; i < sizeof(buffer); i++)

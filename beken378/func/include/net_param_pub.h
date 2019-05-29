@@ -10,7 +10,11 @@ typedef enum{
     DHCP_MODE_ITEM		= 0x33333333,
     WIFI_MAC_ITEM		= 0x44444444,
     SSID_KEY_ITEM		= 0x55555555,
-    IP_CONFIG_ITEM		= 0x66666666
+    IP_CONFIG_ITEM		= 0x66666666,
+    RF_CFG_TSSI_ITEM	= 0x77777777,
+    RF_CFG_DIST_ITEM    = 0x88888888,
+    RF_CFG_MODE_ITEM    = 0x99999999,
+    CHARGE_CONFIG_ITEM  = 0xaaaaaaaa
 }NET_INFO_ITEM;
 
 typedef struct info_item_st
@@ -31,6 +35,13 @@ typedef struct item_mac_addr_st
 	char mac[6];
 	char reserved[2];// 4bytes boundary
 }ITEM_MAC_ADDR_ST,*ITEM_MAC_ADDR_ST_PTR;
+
+typedef struct item_charge_st
+{
+	INFO_ITEM_ST head;
+	char chrg[3];
+	char reserved[1];
+}ITEM_CHARGE_ST,*ITEM_CHARGE_ST_PTR;
 
 typedef struct item_ssidkey_st
 {

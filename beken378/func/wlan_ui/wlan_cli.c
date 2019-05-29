@@ -8,7 +8,7 @@
  *
  */
 #include "sys_rtos.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "error.h"
 
 #include "wlan_cli_pub.h"
@@ -37,6 +37,7 @@
 #include "bk7011_cal_pub.h"
 #include "flash_pub.h"
 #include "mcu_ps_pub.h"
+#include "bk_rtos_pub.h"
 
 #if CFG_SUPPORT_BOOTLOADER
 #include "wdt_pub.h"
@@ -433,7 +434,7 @@ static void cli_main( uint32_t data )
         int ret;
         char *msg = NULL;
 
-        rtos_get_semaphore(&log_rx_interrupt_sema, BEKEN_NEVER_TIMEOUT);
+        bk_rtos_get_semaphore(&log_rx_interrupt_sema, BEKEN_NEVER_TIMEOUT);
 
         if(get_input(pCli->inbuf, &pCli->bp))
         {
@@ -457,13 +458,12 @@ static void cli_main( uint32_t data )
     pCli = NULL;
 
     bk_uart_set_rx_callback(CLI_UART, NULL, NULL);
-    rtos_delete_thread(NULL);
+    bk_rtos_delete_thread(NULL);
 }
 
 #ifndef MOC
 static void task_Command( char *pcWriteBuffer, int xWriteBufferLen, int argc, char **argv )
 {
-    rtos_print_thread_status( pcWriteBuffer, xWriteBufferLen );
 }
 #endif
 
@@ -491,17 +491,17 @@ static void partShow_Command(char *pcWriteBuffer, int xWriteBufferLen, int argc,
 
 static void uptime_Command(char *pcWriteBuffer, int xWriteBufferLen, int argc, char **argv)
 {
-    os_printf("UP time %ldms\r\n", rtos_get_time());
+    os_printf("UP time %ldms\r\n", bk_rtos_get_time());
 }
 
 void tftp_ota_thread( beken_thread_arg_t arg )
 {
-    rtos_delete_thread( NULL );
+    bk_rtos_delete_thread( NULL );
 }
 
 void ota_Command( char *pcWriteBuffer, int xWriteBufferLen, int argc, char **argv )
 {
-    rtos_create_thread( NULL,
+    bk_rtos_create_thread( NULL,
                         BEKEN_APPLICATION_PRIORITY,
                         "LOCAL OTA",
                         (beken_thread_function_t)tftp_ota_thread,
@@ -779,7 +779,7 @@ void mtr_thread_main( void *arg )
             channel_num = 1;
         }
 
-        rtos_delay_milliseconds(100);
+        bk_rtos_delay_milliseconds(100);
         os_printf("channel:%d count:%x\r\n", channel_num, channel_count);
     }
 }
@@ -1724,7 +1724,11 @@ static void Ps_Command(char *pcWriteBuffer, int xWriteBufferLen, int argc, char 
     UINT32 dtim_wait_time = 0;
     UINT32 dtim_data_wait_time = 0;
     UINT32 dtim_uart_wait_time = 0;
-
+	PS_DEEP_CTRL_PARAM deep_sleep_param;
+	deep_sleep_param.gpio_index_map = gpio_index;
+	deep_sleep_param.gpio_edge_map  = dtim;
+	deep_sleep_param.deep_wkway = PS_DEEP_WAKEUP_GPIO;
+	
     if(argc < 3)
     {
         goto IDLE_CMD_ERR;
@@ -1740,7 +1744,7 @@ static void Ps_Command(char *pcWriteBuffer, int xWriteBufferLen, int argc, char 
         gpio_index = os_strtoul(argv[2], NULL, 16);
         dtim = os_strtoul(argv[3], NULL, 16);
 
-        bk_enter_deep_sleep(gpio_index,dtim);
+        bk_enter_deep_sleep_mode(&deep_sleep_param);
     }
 #endif
 #if CFG_USE_MCU_PS
@@ -2139,7 +2143,7 @@ IDLE_CMD_ERR:
 static void cli_rx_callback(int uport, void *param)
 {
 	if(log_rx_interrupt_sema)
-    	rtos_set_semaphore(&log_rx_interrupt_sema);
+    	bk_rtos_set_semaphore(&log_rx_interrupt_sema);
 }
 
 /* ========= CLI input&output APIs ============ */
@@ -2232,7 +2236,7 @@ int cli_init(void)
         return kNoMemoryErr;
 
     os_memset((void *)pCli, 0, sizeof(struct cli_st));
-    rtos_init_semaphore(&log_rx_interrupt_sema, 10);
+    bk_rtos_init_semaphore(&log_rx_interrupt_sema, 10);
 
     if (cli_register_commands(&built_ins[0],
                               sizeof(built_ins) / sizeof(struct cli_command)))
@@ -2242,7 +2246,7 @@ int cli_init(void)
 
     cli_register_commands(user_clis, sizeof(user_clis) / sizeof(struct cli_command));
 
-    ret = rtos_create_thread(NULL,
+    ret = bk_rtos_create_thread(NULL,
                              BEKEN_DEFAULT_WORKER_PRIORITY,
                              "cli",
                              (beken_thread_function_t)cli_main,

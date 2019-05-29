@@ -4,7 +4,7 @@
 #include "error.h"
 #if CFG_USE_SDCARD_HOST
 #include "sdio_driver.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "sys_rtos.h"
 #include "sdcard.h"
 #include "sdcard_pub.h"
@@ -575,9 +575,9 @@ SDIO_Error sdcard_initialize(void)
 {
     SDIO_Error err = SD_OK;
     sdio_sw_init();
-	rtos_delay_milliseconds(20);
+	bk_rtos_delay_milliseconds(20);
     sdio_hw_init();
-	rtos_delay_milliseconds(30);
+	bk_rtos_delay_milliseconds(30);
     // rest card
     err = sdcard_cmd0_process();
     if(err != SD_OK)
@@ -585,16 +585,16 @@ SDIO_Error sdcard_initialize(void)
         SDCARD_FATAL("send cmd0 err\r\n");
         goto err_return;
     }
-    rtos_delay_milliseconds(5);
+    bk_rtos_delay_milliseconds(5);
 
-    rtos_delay_milliseconds(50);
+    bk_rtos_delay_milliseconds(50);
     err = sdcard_cmd1_process();
     os_printf("cmd 1:%x \r\n", err);
     if(err == SD_OK)
     {
         goto MMC_init;
     }
-    rtos_delay_milliseconds(5);
+    bk_rtos_delay_milliseconds(5);
 
 
     // check support voltage
@@ -627,7 +627,7 @@ SDIO_Error sdcard_initialize(void)
                 break;
             }
 
-			rtos_delay_milliseconds(2);
+			bk_rtos_delay_milliseconds(2);
             retry_time--;
         }
         if(!retry_time)
@@ -662,7 +662,7 @@ SDIO_Error sdcard_initialize(void)
             sdio_get_cmdresponse_argument(0, &resp0);
             if(resp0 & OCR_MSK_BUSY)
                 break;
-			rtos_delay_milliseconds(2);
+			bk_rtos_delay_milliseconds(2);
             retry_time--;
         }
         if(!retry_time)
@@ -673,7 +673,7 @@ SDIO_Error sdcard_initialize(void)
         }
         SDCARD_PRT("send cmd55&cmd41 complete, SD V1.X card is ready\r\n");
     }
-	rtos_delay_milliseconds(2);
+	bk_rtos_delay_milliseconds(2);
     // get CID, return R2
     err = sdcard_cmd2_process();
     if(err != SD_OK)
@@ -681,7 +681,7 @@ SDIO_Error sdcard_initialize(void)
         SDCARD_FATAL("send cmd2 err:%d\r\n", err);
         goto err_return;
     }
-	rtos_delay_milliseconds(2);
+	bk_rtos_delay_milliseconds(2);
     // get RCA,
     err = sdcard_cmd3_process();
     if(err != SD_OK)
@@ -692,7 +692,7 @@ SDIO_Error sdcard_initialize(void)
 
     // change to high speed clk
     sdio_set_high_clk();
-	rtos_delay_milliseconds(2);
+	bk_rtos_delay_milliseconds(2);
     // get CSD
     err = sdcard_cmd9_process(SD_CARD);
     if(err != SD_OK)
@@ -700,7 +700,7 @@ SDIO_Error sdcard_initialize(void)
         SDCARD_FATAL("send cmd9 err:%d\r\n", err);
         goto err_return;
     }
-	rtos_delay_milliseconds(2);
+	bk_rtos_delay_milliseconds(2);
     // select card
     err = sdcard_cmd7_process();
     if(err != SD_OK)
@@ -708,7 +708,7 @@ SDIO_Error sdcard_initialize(void)
         SDCARD_FATAL("send cmd7 err:%d\r\n", err);
         goto err_return;
     }
-	rtos_delay_milliseconds(2);
+	bk_rtos_delay_milliseconds(2);
     // change bus width, for high speed
     err = sdcard_acmd6_process();
     if(err != SD_OK)

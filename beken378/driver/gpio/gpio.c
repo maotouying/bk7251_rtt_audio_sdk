@@ -130,7 +130,7 @@ void gpio_config(UINT32 index, UINT32 mode)
         break;
 
     case GMODE_SECOND_FUNC:
-        val = 0x40;
+        val = 0x48;
         break;
 
     case GMODE_INPUT_PULLUP:
@@ -142,9 +142,13 @@ void gpio_config(UINT32 index, UINT32 mode)
         break;
 	
     case GMODE_SECOND_FUNC_PULL_UP:
-        val = 0x70;
+        val = 0x78;
         break;
-
+	
+	case GMODE_SET_HIGH_IMPENDANCE:
+		val = 0x08;
+		break;
+	
     default:
         overstep = 1;
         WARN_PRT("gpio_mode_exception:%d\r\n", mode);
@@ -355,14 +359,14 @@ static void gpio_enable_second_function(UINT32 func_mode)
         break;
 
     case GFUNC_MODE_ADC4:
-        start_index = 3;
-        end_index = 3;
+        start_index = 2;
+        end_index = 2;
         pmode = PERIAL_MODE_2;
         break; 
 
     case GFUNC_MODE_ADC5:
-        start_index = 2;
-        end_index = 2;
+        start_index = 3;
+        end_index = 3;
         pmode = PERIAL_MODE_2;
         break;
 
@@ -385,6 +389,23 @@ static void gpio_enable_second_function(UINT32 func_mode)
         modul_select = GPIO_SD1_HOST_MODULE;
         pmask = GPIO_SD_MODULE_MASK;
         break;
+
+    case GFUNC_MODE_SPI1:
+        start_index = 30;
+        end_index = 33;
+        pmode = PERIAL_MODE_2;
+        modul_select = GPIO_SPI1_MODULE;
+        pmask = GPIO_SPI_MODULE_MASK;
+        break;
+        
+    case GFUNC_MODE_SPI_DMA1:
+        start_index = 30;
+        end_index = 33;
+        pmode = PERIAL_MODE_2;
+        modul_select = GPIO_SPI1_DMA_MODULE;
+        pmask = GPIO_SPI_MODULE_MASK;
+        break;
+        
 #endif // (CFG_SOC_NAME != SOC_BK7231)
 
     default:
@@ -804,9 +825,16 @@ UINT32 gpio_ctrl(UINT32 cmd, void *param)
 }
 
 #if(SOC_BK7221U == CFG_SOC_NAME)
+UINT32 usb_is_plug_in(void)
+{
+    UINT32 reg = REG_READ(REG_GPIO_DETECT);
+
+    return (reg & IS_USB_PLUG_IN_BIT)? 1 : 0;
+}
+
 void usb_plug_inout_isr(void)
 {
-    INT32 reg = REG_READ(REG_GPIO_EXTRAL_INT_CFG);
+    UINT32 reg = REG_READ(REG_GPIO_EXTRAL_INT_CFG);
     
     if(reg & USB_PLUG_IN_INT) 
     {

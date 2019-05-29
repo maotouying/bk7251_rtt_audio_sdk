@@ -1,7 +1,7 @@
 #ifndef _BLE_PUB_H_
 #define _BLE_PUB_H_
 
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #if defined(SUPPORT_MIDEA_BLE)
 #include "msm_ble_adapter.h"
 #endif

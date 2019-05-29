@@ -2,7 +2,7 @@
 #include "sys_rtos.h"
 #include "role_launch.h"
 #include "mem_pub.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "error.h"
 #include "wlan_ui_pub.h"
 
@@ -158,9 +158,9 @@ launch_exit:
 
 uint32_t rl_relaunch_chance(void)
 {
-	ASSERT(rtos_is_oneshot_timer_init(&g_role_launch.rl_timer));
+	ASSERT(bk_rtos_is_oneshot_timer_init(&g_role_launch.rl_timer));
     
-	rtos_oneshot_reload_timer(&g_role_launch.rl_timer);
+	bk_rtos_oneshot_reload_timer(&g_role_launch.rl_timer);
 }
 
 void rl_launch_handler(void *left, void *right)
@@ -210,7 +210,7 @@ void rl_init(void)
 {
     OSStatus err = kNoErr;
     
-	err = rtos_init_oneshot_timer(&g_role_launch.rl_timer, 
+	err = bk_rtos_init_oneshot_timer(&g_role_launch.rl_timer, 
 									RL_LAUNCH_PERIOD, 
 									(timer_2handler_t)rl_launch_handler, 
 									NULL, 
@@ -228,7 +228,7 @@ void rl_uninit(void)
         rl_stop();
     }
     
-    err = rtos_deinit_oneshot_timer(&g_role_launch.rl_timer);
+    err = bk_rtos_deinit_oneshot_timer(&g_role_launch.rl_timer);
     ASSERT(kNoErr == err);  
     g_role_launch.rl_timer_flag = RL_TIMER_UNINIT;   
 }
@@ -238,9 +238,9 @@ void rl_start(void)
     OSStatus err = kNoErr;
 
     JL_PRT("rl_start\r\n");
-    if(0 == rtos_is_oneshot_timer_running(&g_role_launch.rl_timer))
+    if(0 == bk_rtos_is_oneshot_timer_running(&g_role_launch.rl_timer))
     {
-        err = rtos_start_oneshot_timer(&g_role_launch.rl_timer);
+        err = bk_rtos_start_oneshot_timer(&g_role_launch.rl_timer);
         ASSERT(kNoErr == err);
         JL_PRT("rl_start_timer\r\n");
         
@@ -251,7 +251,7 @@ void rl_start(void)
 void rl_stop(void)
 {    
     OSStatus err = kNoErr;
-    err = rtos_stop_oneshot_timer(&g_role_launch.rl_timer);
+    err = bk_rtos_stop_oneshot_timer(&g_role_launch.rl_timer);
     ASSERT(kNoErr == err);   
     
     g_role_launch.rl_timer_flag = RL_TIMER_STOP;

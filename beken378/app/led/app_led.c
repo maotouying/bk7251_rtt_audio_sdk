@@ -1,10 +1,9 @@
 #include "include.h"
 
-// led show spi data state for tianzhiheng
-#if CFG_SUPPORT_TIANZHIHENG_DRONE
+#if 0//CFG_SUPPORT_TIANZHIHENG_DRONE
 #include "FreeRTOS.h"
 #include "task.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "error.h"
 #include "fake_clock_pub.h"
 #include "mem_pub.h"
@@ -25,7 +24,12 @@
 #endif
 
 #define LED_QITEM_COUNT             (2)
-#define LED_GPIO_INDEX              GPIO29     // GPIO19
+#if CFG_USE_SPIDMA
+#define LED_GPIO_INDEX              GPIO9
+#else
+#define LED_GPIO_INDEX              GPIO17
+#endif
+
 #define LED_INITIAL_VAL             1
 #define LED_ON_VAL                  0          // LOW   LED ON
 #define LED_DISCONNECT_VAL          125        // ms
@@ -57,7 +61,7 @@ void app_led_send_msg(DEV_STATE new_msg)
     {
         msg.led_msg = new_msg;
 
-        ret = rtos_push_to_queue(&led_msg_que, &msg, BEKEN_NO_WAIT);
+        ret = bk_rtos_push_to_queue(&led_msg_que, &msg, BEKEN_NO_WAIT);
         if(kNoErr != ret)
         {
             os_printf("app_led_send_msg failed\r\n");
@@ -71,7 +75,7 @@ static void app_led_timer_poll_handler(void)
 
     bk_gpio_output_reverse(ledctr.gpio_idx);
 
-    err = rtos_reload_timer(&ledctr.led_timer);
+    err = bk_rtos_reload_timer(&ledctr.led_timer);
     ASSERT(kNoErr == err);
 }
 
@@ -90,7 +94,7 @@ static void app_led_poll_handler(DEV_STATE next_sta)
     if(ledctr.state == next_sta)
         return;
 
-    err = rtos_stop_timer(&ledctr.led_timer);
+    err = bk_rtos_stop_timer(&ledctr.led_timer);
     ASSERT(kNoErr == err);
 
     switch(next_sta)
@@ -134,7 +138,7 @@ static void app_led_poll_handler(DEV_STATE next_sta)
 
     if(intval)
     {
-        err = rtos_change_period(&ledctr.led_timer, intval);
+        err = bk_rtos_change_period(&ledctr.led_timer, intval);
         ASSERT(kNoErr == err);
     }
 }
@@ -151,19 +155,19 @@ static void app_led_main( beken_thread_arg_t data )
     bk_gpio_config_output(ledctr.gpio_idx);
     bk_gpio_output(ledctr.gpio_idx, LED_INITIAL_VAL);
 
-    err = rtos_init_timer(&ledctr.led_timer,
+    err = bk_rtos_init_timer(&ledctr.led_timer,
                           1 * 1000,
                           app_led_timer_handler,
                           (void *)0);
     ASSERT(kNoErr == err);
 
-    err = rtos_start_timer(&ledctr.led_timer);
+    err = bk_rtos_start_timer(&ledctr.led_timer);
     ASSERT(kNoErr == err);
 
     while(1)
     {
         LED_MSG_T msg;
-        err = rtos_pop_from_queue(&led_msg_que, &msg, BEKEN_WAIT_FOREVER);
+        err = bk_rtos_pop_from_queue(&led_msg_que, &msg, BEKEN_WAIT_FOREVER);
         if(kNoErr == err)
         {
             switch(msg.led_msg)
@@ -181,11 +185,12 @@ static void app_led_main( beken_thread_arg_t data )
 app_led_exit:
     LED_PRT("app_led_main exit\r\n");
 
-    rtos_deinit_queue(led_msg_que);
+    bk_rtos_deinit_queue(&led_msg_que);
+
     led_msg_que = NULL;
 
     led_thread_handle = NULL;
-    rtos_delete_thread(NULL);
+    bk_rtos_delete_thread(NULL);
 
 }
 
@@ -193,10 +198,10 @@ UINT32 app_led_init(void)
 {
     int ret;
 
-    LED_PRT("app_led_init %d\r\n");
+    LED_PRT("app_led_init\r\n");
     if((!led_thread_handle) && (!led_msg_que))
     {
-        ret = rtos_init_queue(&led_msg_que,
+        ret = bk_rtos_init_queue(&led_msg_que,
                               "led_queue",
                               sizeof(LED_MSG_T),
                               LED_QITEM_COUNT);
@@ -206,7 +211,7 @@ UINT32 app_led_init(void)
             return kGeneralErr;
         }
 
-        ret = rtos_create_thread(&led_thread_handle,
+        ret = bk_rtos_create_thread(&led_thread_handle,
                                  BEKEN_DEFAULT_WORKER_PRIORITY,
                                  "app led",
                                  (beken_thread_function_t)app_led_main,
@@ -214,7 +219,8 @@ UINT32 app_led_init(void)
                                  NULL);
         if (ret != kNoErr)
         {
-            rtos_deinit_queue(led_msg_que);
+
+            bk_rtos_deinit_queue(&led_msg_que);
             led_msg_que = NULL;
             LED_PRT("Error: Failed to create app_led_init: %d\r\n", ret);
             return kGeneralErr;

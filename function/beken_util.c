@@ -1,5 +1,5 @@
 #include <stdarg.h>
-
+#include "rtthread.h"
 #include "beken_util.h"
 
 char * dynamic_form_data_append(char *old, const char *key, const char *value)

@@ -1,77 +1,48 @@
-
 #include "error.h"
 #include "include.h"
-#include "arm_arch.h"
-#include "gpio_pub.h"
-#include "uart_pub.h"
-#include "music_msg_pub.h"
-#include "co_list.h"
-#include "saradc_pub.h"
-#include "temp_detect_pub.h"
-#include "sys_rtos.h"
-#include "rtos_pub.h"
-#include "saradc_intf.h"
-#include "pwm_pub.h"
-#include "pwm.h"
+
+#include <rthw.h>
+#include <rtthread.h>
+#include <rtdevice.h>
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <finsh.h>
+#include <rtdef.h>
 
-#define LED_TIMER_PWM_ID 1
-#define LED_TIMER_PERIOD 4 /*4ms*/
-#define LED_MATRIX_COLUMN_NUM 5
+#include "manual_ps_pub.h"
+#include "bk_rtos_pub.h"
 
-
-
-int hal_pwm_stop(void)
+static void enter_deep_sleep_test(int argc,char *argv[])
 {
-	int ret =LED_TIMER_PWM_ID;
-	
+	bk_rtos_delay_milliseconds(10);
+	PS_DEEP_CTRL_PARAM deep_sleep_param;
 
-	ret = pwm_ctrl(CMD_PWM_UINT_DISABLE, (void*)&ret);
-	if (ret != 0) {
-		rt_kprintf("stop pwm%d failed!\n", LED_TIMER_PWM_ID);
-		return -1;
+	deep_sleep_param.wake_up_way			= 0;
+	
+	deep_sleep_param.gpio_index_map      	= atoi(argv[1]);
+	deep_sleep_param.gpio_edge_map       	= atoi(argv[2]);	
+	deep_sleep_param.gpio_last_index_map 	= atoi(argv[3]);
+	deep_sleep_param.gpio_last_edge_map  	= atoi(argv[4]);
+	deep_sleep_param.sleep_time     		= atoi(argv[5]);
+	deep_sleep_param.wake_up_way     		= atoi(argv[6]);
+
+	if(argc == 7)
+	{		
+		rt_kprintf("---deep sleep test param : 0x%0X 0x%0X 0x%0X 0x%0X %d %d\r\n", 
+					deep_sleep_param.gpio_index_map, 
+					deep_sleep_param.gpio_edge_map,
+					deep_sleep_param.gpio_last_index_map, 
+					deep_sleep_param.gpio_last_edge_map,
+					deep_sleep_param.sleep_time,
+					deep_sleep_param.wake_up_way);
+		
+		bk_enter_deep_sleep_mode(&deep_sleep_param);
 	}
-	
-	return 0;
+	else
+	{
+		rt_kprintf("---argc error!!! \r\n");
+	}
 }
 
-void all_led_off(void)
-{
-	hal_pwm_stop();
-}
-
-int deep_sleep_mode(void)
-{
-	uint32_t gpio_index_map = 0x1C;
-	uint32_t gpio_edge_map = 0;
-	uint32_t gpio_index, gpio_pull;
-	rt_kprintf("enter bk_enter_deep_sleep: 0x%08X 0x%08X\n\n", gpio_index_map, gpio_edge_map);
-	bk_enter_deep_sleep(gpio_index_map, gpio_edge_map);
-
-	return 0;
-}
-
-void key_unconfig(void);
-
-void enter_deep_sleep_mode(void)
-{
-	rt_thread_sleep(200);
-	
-	UINT32 gpio_index_map = 0;
-	UINT32 gpio_edge_map = 0;
-	UINT32 gpio_index, gpio_pull;
-	rt_kprintf("enter into sleep mdoe \r\n");
-	all_led_off(); 						/*close all led*/
-	rt_thread_sleep(200);
-	audio_dac_eable_mute(1);
-	key_uninitialization();				/*uninitial key*/	
-	saradc_disable_vddram_voltage();	/*disable saradc*/
-	
-	deep_sleep_mode();
-}
-
-FINSH_FUNCTION_EXPORT_ALIAS(enter_deep_sleep_mode, __cmd_sleep_mode, test sleep mode);
-
-
+FINSH_FUNCTION_EXPORT_ALIAS(enter_deep_sleep_test, __cmd_sleep_mode, test sleep mode);

@@ -42,6 +42,7 @@ extern const struct romfs_dirent romfs_root;
 #define DFS_ROMFS_ROOT          (&romfs_root) 
 extern rt_err_t rt_audio_codec_hw_init(void);
 extern int player_system_init(void);
+extern void user_main( beken_thread_arg_t args );
 
 extern int rt_hw_flash_disk_readonly_init(const char *name, uint32_t base, uint32_t sector_size, uint32_t capacity);
 
@@ -88,7 +89,7 @@ int main(int argc, char **argv)
 #endif
 
     wlan_app_init();
-	rt_audio_codec_hw_init();
+	//rt_audio_codec_hw_init();
 	player_system_init();
 
     return 0;

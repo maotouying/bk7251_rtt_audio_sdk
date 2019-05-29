@@ -17,7 +17,7 @@
 #include "ps.h"
 #include "param_config.h"
 #include "wlan_ui_pub.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "error.h"
 #include "wlan_ui_pub.h"
 
@@ -671,7 +671,7 @@ static void hostapd_thread_start(void)
     OSStatus ret;
      
     if(wpah_queue == NULL) {
-    	ret = rtos_init_queue(&wpah_queue, 
+    	ret = bk_rtos_init_queue(&wpah_queue, 
     							"wpah_queue",
     							sizeof(WPAH_MSG_ST),
     							40);
@@ -679,7 +679,7 @@ static void hostapd_thread_start(void)
     }
 
     if((hostapd_thread_handle== NULL) && (NULL == wpas_thread_handle)) {
-        ret = rtos_create_thread(&hostapd_thread_handle, 
+        ret = bk_rtos_create_thread(&hostapd_thread_handle, 
                 THD_HOSTAPD_PRIORITY,
                 "hostapd_thread", 
                 (beken_thread_function_t)hostapd_thread_main, 
@@ -693,10 +693,10 @@ static void hostapd_thread_stop(void)
 {  
     OSStatus ret;
 	
-    ret = rtos_delete_thread(&hostapd_thread_handle);
+    ret = bk_rtos_delete_thread(&hostapd_thread_handle);
     ASSERT(kNoErr == ret);
     
-    ret = rtos_deinit_semaphore(&hostapd_sema);
+    ret = bk_rtos_deinit_semaphore(&hostapd_sema);
     ASSERT(kNoErr == ret);
 }
 
@@ -707,7 +707,7 @@ int hostapd_sem_wait(uint32_t ms)
 		return kTimeoutErr;
 	}
 	
-	return rtos_get_semaphore(&hostapd_sema, ms);
+	return bk_rtos_get_semaphore(&hostapd_sema, ms);
 }
 
 void hostapd_poll(void *param)
@@ -716,7 +716,7 @@ void hostapd_poll(void *param)
 	
 	if(hostapd_sema)
 	{
-    	ret = rtos_set_semaphore(&hostapd_sema);
+    	ret = bk_rtos_set_semaphore(&hostapd_sema);
 	}
 }
 
@@ -732,7 +732,7 @@ void wpa_hostapd_queue_poll(uint32_t param)
     
     if(wpah_queue) {
         msg.argu = (u32)param; 
-        ret = rtos_push_to_queue(&wpah_queue, &msg, BEKEN_NO_WAIT);
+        ret = bk_rtos_push_to_queue(&wpah_queue, &msg, BEKEN_NO_WAIT);
     	if(kNoErr != ret)
     	{
     		wpa_printf("wpa_hostapd_queue_poll failed\r\n");

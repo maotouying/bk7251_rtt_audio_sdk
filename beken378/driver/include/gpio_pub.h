@@ -44,6 +44,7 @@ enum
     GMODE_INPUT,
     GMODE_SECOND_FUNC_PULL_UP,//Special for uart1
     GMODE_OUTPUT_PULLUP,
+    GMODE_SET_HIGH_IMPENDANCE,
     GMODE_HIGH_Z
 };
 
@@ -124,6 +125,8 @@ enum
     GFUNC_MODE_ADC6,
     GFUNC_MODE_ADC7,
     GFUNC_MODE_SD1_HOST,
+    GFUNC_MODE_SPI1,
+    GFUNC_MODE_SPI_DMA1,
 };
 
 enum
@@ -234,6 +237,7 @@ typedef struct usb_plug_inout {
 
 extern USB_PLUG_INOUT_ST usb_plug;
 void usb_plug_inout_isr(void);
+UINT32 usb_is_plug_in(void);
 #endif
 
 extern UINT32 gpio_ctrl(UINT32 cmd, void *param);

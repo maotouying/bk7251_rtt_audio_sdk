@@ -2,7 +2,7 @@
 #include <string.h>
 #include "include.h"
 #include "driver_udisk.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "uart_pub.h"
 #include "usb_msd.h"
 
@@ -31,7 +31,7 @@ uint8 udisk_init(void)
 	    }
 		else
 		{
-			rtos_delay_milliseconds(100);
+			bk_rtos_delay_milliseconds(100);
 		}
 	}
 

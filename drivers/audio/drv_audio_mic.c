@@ -3,11 +3,11 @@
 #include <rtdevice.h>
 #include <drivers/audio.h>
 #include <audio_pipe.h>
-
+#include "board.h"
 #include <string.h>
 
 #include "include.h"
-#if (CFG_SOC_NAME == SOC_BK7221U)
+#if ((CFG_SOC_NAME == SOC_BK7221U) && (CFG_USE_AUD_ADC == 1))
 #include "arm_arch.h"
 #include "general_dma_pub.h"
 #include "audio.h"

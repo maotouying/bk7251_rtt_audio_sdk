@@ -6,7 +6,7 @@
 #include "airkiss.h"
 #include <stdio.h>
 #include <sys/socket.h>
-
+#include "lwip/sockets.h"
 #define AIRKISS_PRINTF rt_kprintf
 
 #define AIRKISS_SWITCH_TIMER    rt_tick_from_millisecond(50)    // ms
@@ -28,11 +28,12 @@ static struct rt_wlan_device *g_wlan_device = RT_NULL;
 static volatile uint8_t g_current_channel;
 static int airkiss_recv_ret;
 static rt_sem_t g_cfg_done_sem;
+static airkiss_result_t result;
 
 static void airkiss_switch_channel(void *parameter)
 {
     g_current_channel++;
-    if (g_current_channel > MAX_CHANNEL_NUM)
+    if (g_current_channel >= MAX_CHANNEL_NUM)
     {
         g_current_channel = 1;
     }
@@ -60,7 +61,6 @@ static void airkiss_monitor_callback(uint8_t *data, int len, void *user_data)
     {
         rt_timer_stop(g_doing_timer);
         rt_sem_release(g_cfg_done_sem);
-        AIRKISS_PRINTF("AIRKISS_STATUS_COMPLETE \n");
     }
 }
 
@@ -152,13 +152,23 @@ static void airkiss_send_notification_thread(void *parameter)
 _exit:
     if (sock >= 0)
     {
-        close(sock);
+        closesocket(sock);
     }
+}
+
+uint32_t airkiss_get_status(void)
+{
+	return airkiss_recv_ret;
+}
+
+airkiss_result_t *airkiss_result_get(void)
+{
+	return &result;
 }
 
 static void airkiss_thread_entry(void *parameter)
 {
-    int result;
+	int ret;
 
     g_switch_timer = rt_timer_create("switch_channel",
                                      airkiss_switch_channel,
@@ -196,8 +206,8 @@ static void airkiss_thread_entry(void *parameter)
         goto _exit;
     }
 
-    result = airkiss_init(ak_contex, &ak_conf);
-    if (result != RT_EOK)
+    ret = airkiss_init(ak_contex, &ak_conf);
+    if (ret != RT_EOK)
     {
         rt_kprintf("Airkiss init failed!!\r\n");
         goto _exit;
@@ -223,11 +233,11 @@ static void airkiss_thread_entry(void *parameter)
     {
         AIRKISS_PRINTF("Wait semaphore timeout \n");
     }
+	
     if (airkiss_recv_ret == AIRKISS_STATUS_COMPLETE)
     {
         int8_t err;
         int8_t tick = 0;
-        airkiss_result_t result;
 
         err = airkiss_get_result(ak_contex, &result);
         if (err == 0)
@@ -251,14 +261,13 @@ static void airkiss_thread_entry(void *parameter)
                 goto _exit;
             }
 
-        }
-        while (!get_wifi_status(g_wlan_device->parent.netif));
+        }while (!get_wifi_status(g_wlan_device->parent.netif));
 
         {
             rt_thread_t tid;
 
             tid = rt_thread_create("air_echo",
-                                   airkiss_send_notification_thread, (void *)result.random,
+                                   airkiss_send_notification_thread, (void *)((uint32_t)result.random),
                                    1536, RT_THREAD_PRIORITY_MAX - 3, 20);
             if (tid != RT_NULL)
             {
@@ -272,11 +281,13 @@ _exit:
     {
         rt_timer_stop(g_switch_timer);
         rt_timer_delete(g_switch_timer);
+        g_switch_timer = RT_NULL;
     }
     if (g_doing_timer)
     {
         rt_timer_stop(g_doing_timer);
         rt_timer_delete(g_doing_timer);
+        g_doing_timer = RT_NULL;
     }
     if (ak_contex != RT_NULL)
     {
@@ -287,7 +298,7 @@ _exit:
     if (g_cfg_done_sem)
     {
         rt_sem_delete(g_cfg_done_sem);
-        g_cfg_done_sem = 0;
+        g_cfg_done_sem = RT_NULL;
     }
 }
 
@@ -311,12 +322,36 @@ int airkiss(void)
     }
 	return result;
 }
+
+
 int start_airkiss(int argc, char *argv[])
 {
-	if(1 == airkiss())
-		rt_kprintf("airkiss start\r\n");
-	else
-		rt_kprintf("airkiss fail\r\n");
+    if(g_cfg_done_sem == RT_NULL)
+    {
+    	if(1 == airkiss())
+    	{
+    		rt_kprintf("airkiss start\r\n");
+
+            rt_thread_delay(rt_tick_from_millisecond(1000));	
+            
+        	while(g_cfg_done_sem)
+        	{
+                uint32_t res;
+                res = airkiss_get_status();
+                if(res == AIRKISS_STATUS_COMPLETE)
+                {
+                    airkiss_result_t *result;
+                    result = airkiss_result_get();
+                    rt_kprintf("---ssid:%s , key:%s---\r\n", result->ssid,result->pwd);
+                    break;
+                }
+                
+        		rt_thread_delay(rt_tick_from_millisecond(100));	
+        	}
+    	}
+        else
+    		rt_kprintf("airkiss fail\r\n");
+    }
 }
 #ifdef FINSH_USING_MSH
 #include "finsh.h"

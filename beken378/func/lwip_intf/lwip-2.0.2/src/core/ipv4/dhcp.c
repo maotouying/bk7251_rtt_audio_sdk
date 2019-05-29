@@ -80,7 +80,7 @@
 
 #include "error.h"
 #include "fake_clock_pub.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "wlan_ui_pub.h"
 
 /** DHCP_CREATE_RAND_XID: if this is set to 1, the xid is created using
@@ -729,15 +729,15 @@ void dhcp_stop_timeout_check(void)
 {
     OSStatus ret = kNoErr;
 	
-	if(rtos_is_oneshot_timer_init(&dhcp_tmr))
+	if(bk_rtos_is_oneshot_timer_init(&dhcp_tmr))
 	{
-	    if (rtos_is_oneshot_timer_running(&dhcp_tmr)) 
+	    if (bk_rtos_is_oneshot_timer_running(&dhcp_tmr)) 
 		{
-	        ret = rtos_stop_oneshot_timer(&dhcp_tmr);
+	        ret = bk_rtos_stop_oneshot_timer(&dhcp_tmr);
 			ASSERT(kNoErr == ret);
 	    }
 
-	    ret = rtos_deinit_oneshot_timer(&dhcp_tmr);
+	    ret = bk_rtos_deinit_oneshot_timer(&dhcp_tmr);
 		ASSERT(kNoErr == ret);
 	}
 }
@@ -749,21 +749,21 @@ void dhcp_start_timeout_check(u32_t secs, u32_t usecs)
 
 	clk_time = (secs * 1000 + usecs / 1000 );
 
-	if(rtos_is_oneshot_timer_init(&dhcp_tmr))
+	if(bk_rtos_is_oneshot_timer_init(&dhcp_tmr))
 	{
 		os_printf("dhcp_check_status_reload_timer\r\n\r\n");
-		rtos_oneshot_reload_timer(&dhcp_tmr);
+		bk_rtos_oneshot_reload_timer(&dhcp_tmr);
 	}
 	else
 	{
 		os_printf("dhcp_check_status_init_timer\r\n\r\n");
-		err = rtos_init_oneshot_timer(&dhcp_tmr, 
+		err = bk_rtos_init_oneshot_timer(&dhcp_tmr, 
 										clk_time, 
 										(timer_2handler_t)dhcp_check_status, 
 										NULL, 
 										NULL);
 		ASSERT(kNoErr == err);
-		err = rtos_start_oneshot_timer(&dhcp_tmr);
+		err = bk_rtos_start_oneshot_timer(&dhcp_tmr);
 		ASSERT(kNoErr == err);
 	}		
 
@@ -1438,6 +1438,8 @@ dhcp_stop(struct netif *netif)
       dhcp->pcb_allocated = 0;
     }
   }
+  
+   dhcp_cleanup(netif);
   
    dhcp_stop_timeout_check();
 }

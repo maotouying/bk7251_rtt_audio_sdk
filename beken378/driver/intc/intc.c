@@ -34,6 +34,10 @@
 extern void do_irq( void );
 extern void do_fiq( void );
 extern void do_swi( void );
+extern void do_undefined( void );
+extern void do_pabort( void );
+extern void do_dabort( void );
+extern void do_reserved( void );
 
 ISR_T _isrs[INTC_MAX_COUNT] = {0,};
 static UINT32 isrs_mask = 0;
@@ -261,9 +265,13 @@ void intc_init(void)
 {
     UINT32 param;
 
-    *((volatile uint32_t *)0x400000) = &do_irq;
-    *((volatile uint32_t *)0x400004) = &do_fiq;
-    *((volatile uint32_t *)0x400008) = &do_swi;
+    *((volatile uint32_t *)0x400000) = (uint32_t)&do_irq;
+    *((volatile uint32_t *)0x400004) = (uint32_t)&do_fiq;
+    *((volatile uint32_t *)0x400008) = (uint32_t)&do_swi;
+    *((volatile uint32_t *)0x40000c) = (uint32_t)&do_undefined;
+    *((volatile uint32_t *)0x400010) = (uint32_t)&do_pabort;
+    *((volatile uint32_t *)0x400014) = (uint32_t)&do_dabort;
+    *((volatile uint32_t *)0x400018) = (uint32_t)&do_reserved;
 
     intc_enable(FIQ_MAC_GENERAL);
     intc_enable(FIQ_MAC_PROT_TRIGGER);

@@ -1,7 +1,7 @@
 #include "intc_pub.h"
 #include "pwm_pub.h"
 #include "rw_pub.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "arm_arch.h"
 #include "sys_ctrl_pub.h"
 #include "mcu_ps.h"

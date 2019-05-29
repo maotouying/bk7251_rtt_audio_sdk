@@ -31,24 +31,33 @@
  */
 #include <rtthread.h>
 #include "include.h"
-#include "rtos_pub.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "bk_rtos_pub.h"
 #include "uart_pub.h"
-#include "Error.h"
+#include "error.h"
 #include "portmacro.h"
 
+#define	 OS_THREAD_DEMO		1
+#define	 OS_MUTEX_DEMO		1
+#define	 OS_SEM_DEMO		1
+#define  OS_QUEUE_DEMO 		1
+#define  OS_TIMER_DEMO 		1
+
 #if OS_THREAD_DEMO
-void thread_0( beken_thread_arg_t arg )
+static void thread_0( beken_thread_arg_t arg )
 {
     (void)( arg );
 
     os_printf( "This is thread 0\r\n");
-    rtos_delay_milliseconds((TickType_t)1000 );
+    bk_rtos_delay_milliseconds((TickType_t)1000 );
 
     /* Make with terminate state and IDLE thread will clean resources */
-    rtos_delete_thread(NULL);
+    bk_rtos_delete_thread(NULL);
 }
 
-void thread_1( beken_thread_arg_t arg )
+static void thread_1( beken_thread_arg_t arg )
 {
     (void)( arg );
     OSStatus err = kNoErr;
@@ -57,7 +66,7 @@ void thread_1( beken_thread_arg_t arg )
     while ( 1 )
     {
         /* Create a new thread, and this thread will delete its self and clean its resource */
-        err = rtos_create_thread( &t_handler,
+        err = bk_rtos_create_thread( &t_handler,
                                   BEKEN_APPLICATION_PRIORITY,
                                   "Thread 0",
                                   thread_0,
@@ -68,32 +77,32 @@ void thread_1( beken_thread_arg_t arg )
             os_printf("ERROR: Unable to start the thread 1.\r\n" );
         }
         /* wait thread 0 delete it's self */
-        rtos_thread_join( &t_handler );
+        bk_rtos_thread_join( &t_handler );
     }
 }
 
-void thread_2( beken_thread_arg_t arg )
+static void thread_2( beken_thread_arg_t arg )
 {
     (void)( arg );
 
     while ( 1 )
     {
         os_printf( "This is thread 2\r\n" );
-        rtos_delay_milliseconds((TickType_t)600);
+        bk_rtos_delay_milliseconds((TickType_t)600);
     }
 }
 
 /***************************************************************
    This function make two thread for Os_thread application.
 ***************************************************************/
-int thread_demo_start( void )
+static int thread_demo_start( void )
 {
     OSStatus err = kNoErr;
     beken_thread_t t_handler1 = NULL, t_handler2 = NULL;
 
     os_printf("\r\n\r\noperating system thread demo............\r\n" );
 
-    err = rtos_create_thread( &t_handler1, BEKEN_APPLICATION_PRIORITY,
+    err = bk_rtos_create_thread( &t_handler1, BEKEN_APPLICATION_PRIORITY,
                               "Thread 1",
                               thread_1,
                               0x400,
@@ -104,7 +113,7 @@ int thread_demo_start( void )
         goto exit;
     }
 
-    err = rtos_create_thread( &t_handler2, BEKEN_APPLICATION_PRIORITY,
+    err = bk_rtos_create_thread( &t_handler2, BEKEN_APPLICATION_PRIORITY,
                               "Thread 2",
                               thread_2,
                               0x400,
@@ -122,12 +131,12 @@ exit:
 
         if(t_handler1 != NULL)
         {
-            rtos_delete_thread(t_handler1);
+            bk_rtos_delete_thread(t_handler1);
         }
 
         if(t_handler2 != NULL)
         {
-            rtos_delete_thread(t_handler2);
+            bk_rtos_delete_thread(t_handler2);
         }
     }
 
@@ -139,20 +148,20 @@ exit:
 #if OS_MUTEX_DEMO
 static beken_mutex_t os_mutex = NULL;
 
-OSStatus mutex_printf_msg(char *s)
+static OSStatus mutex_printf_msg(char *s)
 {
     OSStatus err = kNoErr;
     if(os_mutex == NULL)
     {
         return -1;
     }
-    err = rtos_lock_mutex(&os_mutex);
+    err = bk_rtos_lock_mutex(&os_mutex);
     if(err != kNoErr)
     {
         return err;
     }
     os_printf( "%s\r\n", s);
-    err = rtos_unlock_mutex(&os_mutex);
+    err = bk_rtos_unlock_mutex(&os_mutex);
     if(err != kNoErr)
     {
         return err;
@@ -160,7 +169,7 @@ OSStatus mutex_printf_msg(char *s)
     return err;
 }
 
-void os_mutex_sender_thread( beken_thread_arg_t arg )
+static void os_mutex_sender_thread( beken_thread_arg_t arg )
 {
     OSStatus err = kNoErr;
     char *taskname = (char *)arg;
@@ -176,7 +185,7 @@ void os_mutex_sender_thread( beken_thread_arg_t arg )
             os_printf( "%s printf_msg error!\r\n", taskname);
             goto exit;
         }
-        rtos_delay_milliseconds( rd );
+        bk_rtos_delay_milliseconds( rd );
     }
 
 exit:
@@ -186,24 +195,25 @@ exit:
     }
     if(os_mutex != NULL)
     {
-        rtos_deinit_mutex(&os_mutex);
+        bk_rtos_deinit_mutex(&os_mutex);
     }
-    rtos_delete_thread( NULL );
+    bk_rtos_delete_thread( NULL );
 }
 
-int mutex_demo_start( void )
+static int mutex_demo_start( void )
 {
     OSStatus err = kNoErr;
+    beken_thread_t t_handler1 = NULL, t_handler2 = NULL;
 
-    err = rtos_init_mutex( &os_mutex );
+    err = bk_rtos_init_mutex( &os_mutex );
 
     if(err != kNoErr)
     {
-        os_printf( "rtos_init_mutex err: %d\r\n", err );
+        os_printf( "bk_rtos_init_mutex err: %d\r\n", err );
         goto exit;
     }
 
-    err = rtos_create_thread( NULL,
+    err = bk_rtos_create_thread( &t_handler1,
                               BEKEN_APPLICATION_PRIORITY,
                               "sender1",
                               os_mutex_sender_thread,
@@ -214,7 +224,7 @@ int mutex_demo_start( void )
         goto exit;
     }
 
-    err = rtos_create_thread( NULL,
+    err = bk_rtos_create_thread( &t_handler2,
                               BEKEN_APPLICATION_PRIORITY,
                               "sender2",
                               os_mutex_sender_thread,
@@ -241,7 +251,7 @@ typedef struct _msg
 
 static beken_queue_t os_queue = NULL;
 
-void receiver_thread( beken_thread_arg_t arg )
+static void receiver_thread( beken_thread_arg_t arg )
 {
     OSStatus err;
     msg_t received = { 0 };
@@ -249,7 +259,7 @@ void receiver_thread( beken_thread_arg_t arg )
     while ( 1 )
     {
         /*Wait until queue has data*/
-        err = rtos_pop_from_queue( &os_queue, &received, BEKEN_NEVER_TIMEOUT);
+        err = bk_rtos_pop_from_queue( &os_queue, &received, BEKEN_NEVER_TIMEOUT);
         if(err == kNoErr)
         {
             os_printf( "Received data from queue:value = %d\r\n", received.value );
@@ -265,10 +275,10 @@ exit:
     if ( err != kNoErr )
         os_printf( "Receiver exit with err: %d\r\n", err );
 
-    rtos_delete_thread( NULL );
+    bk_rtos_delete_thread( NULL );
 }
 
-void sender_thread( beken_thread_arg_t arg )
+static void sender_thread( beken_thread_arg_t arg )
 {
     OSStatus err = kNoErr;
 
@@ -277,7 +287,7 @@ void sender_thread( beken_thread_arg_t arg )
     while ( 1 )
     {
         my_message.value++;
-        err = rtos_push_to_queue(&os_queue, &my_message, BEKEN_NEVER_TIMEOUT);
+        err = bk_rtos_push_to_queue(&os_queue, &my_message, BEKEN_NEVER_TIMEOUT);
         if(err == kNoErr)
         {
             os_printf( "send data to queue\r\n" );
@@ -286,7 +296,7 @@ void sender_thread( beken_thread_arg_t arg )
         {
             os_printf("send data to queue failed:Err = %d\r\n", err);
         }
-        rtos_delay_milliseconds( 100 );
+        bk_rtos_delay_milliseconds( 100 );
     }
 
 exit:
@@ -295,20 +305,21 @@ exit:
         os_printf( "Sender exit with err: %d\r\n", err );
     }
 
-    rtos_delete_thread( NULL );
+    bk_rtos_delete_thread( NULL );
 }
 
-int queue_demo_start( void )
+static int queue_demo_start( void )
 {
     OSStatus err = kNoErr;
-
-    err = rtos_init_queue( &os_queue, "queue", sizeof(msg_t), 3 );
+    beken_thread_t t_handler1 = NULL, t_handler2 = NULL;
+	
+    err = bk_rtos_init_queue( &os_queue, "queue", sizeof(msg_t), 3 );
 
     if(err != kNoErr)
     {
         goto exit;
     }
-    err = rtos_create_thread( NULL,
+    err = bk_rtos_create_thread( &t_handler1,
                               BEKEN_APPLICATION_PRIORITY,
                               "sender",
                               sender_thread,
@@ -318,7 +329,7 @@ int queue_demo_start( void )
     {
         goto exit;
     }
-    err = rtos_create_thread( NULL,
+    err = bk_rtos_create_thread( &t_handler2,
                               BEKEN_APPLICATION_PRIORITY,
                               "receiver",
                               receiver_thread,
@@ -341,30 +352,30 @@ exit:
 #if OS_SEM_DEMO
 static beken_semaphore_t os_sem = NULL;
 
-void set_semaphore_thread( beken_thread_arg_t arg )
+static void set_semaphore_thread( beken_thread_arg_t arg )
 {
     while ( 1 )
     {
         os_printf( "release semaphore!\r\n" );
-        rtos_set_semaphore( &os_sem );
-        rtos_delay_milliseconds( 500 );
+        bk_rtos_set_semaphore( &os_sem );
+        bk_rtos_delay_milliseconds( 500 );
     }
 
 exit:
     if(os_sem)
     {
-        rtos_deinit_semaphore(&os_sem);
+        bk_rtos_deinit_semaphore(&os_sem);
     }
-    rtos_delete_thread( NULL );
+    bk_rtos_delete_thread( NULL );
 }
 
-void get_semaphore_thread( beken_thread_arg_t arg )
+static void get_semaphore_thread( beken_thread_arg_t arg )
 {
     OSStatus err;
 
     while(1)
     {
-        err = rtos_get_semaphore(&os_sem, BEKEN_NEVER_TIMEOUT);
+        err = bk_rtos_get_semaphore(&os_sem, BEKEN_NEVER_TIMEOUT);
         if(err == kNoErr)
         {
             os_printf("Get_Sem Succend!\r\n");
@@ -379,24 +390,26 @@ void get_semaphore_thread( beken_thread_arg_t arg )
 exit:
     if(os_sem)
     {
-        rtos_deinit_semaphore(&os_sem);
+        bk_rtos_deinit_semaphore(&os_sem);
     }
-    rtos_delete_thread( NULL );
+    bk_rtos_delete_thread( NULL );
 }
 
-int sem_demo_start( void )
+static int sem_demo_start( void )
 {
     OSStatus err = kNoErr;
+    beken_thread_t t_handler1 = NULL, t_handler2 = NULL;
+	
     os_printf( "test binary semaphore\r\n" );
 
-    err = rtos_init_semaphore( &os_sem, 1 ); //0/1 binary semaphore || 0/N semaphore
+    err = bk_rtos_init_semaphore( &os_sem, 1 ); //0/1 binary semaphore || 0/N semaphore
 
     if(err != kNoErr)
     {
         goto exit;
     }
 
-    err = rtos_create_thread( NULL,
+    err = bk_rtos_create_thread( &t_handler1,
                               BEKEN_APPLICATION_PRIORITY,
                               "get_sem",
                               get_semaphore_thread,
@@ -406,7 +419,7 @@ int sem_demo_start( void )
     {
         goto exit;
     }
-    err = rtos_create_thread( NULL,
+    err = bk_rtos_create_thread( &t_handler2,
                               BEKEN_APPLICATION_PRIORITY,
                               "set_sem",
                               set_semaphore_thread,
@@ -430,53 +443,53 @@ exit:
 #if OS_TIMER_DEMO
 beken_timer_t timer_handle, timer_handle2;
 
-void destroy_timer( void )
+static void destroy_timer( void )
 {
     /* Stop software timer(timer_handle) */
-    rtos_stop_timer( &timer_handle );
+    bk_rtos_stop_timer( &timer_handle );
     /* delete software timer(timer_handle) */
-    rtos_deinit_timer( &timer_handle );
+    bk_rtos_deinit_timer( &timer_handle );
     /* Stop software timer(timer_handle2) */
-    rtos_stop_timer( &timer_handle2 );
+    bk_rtos_stop_timer( &timer_handle2 );
     /* delete software timer(timer_handle2) */
-    rtos_deinit_timer( &timer_handle2 );
+    bk_rtos_deinit_timer( &timer_handle2 );
 }
 
-void timer_alarm( void *arg )
+static void timer_alarm( void *arg )
 {
     os_printf("I'm timer_handle1\r\n");
 }
 
-void timer2_alarm( void *arg )
+static void timer2_alarm( void *arg )
 {
     os_printf("I'm timer_handle2,destroy timer!\r\n");
 
     destroy_timer();
 }
 
-int timer_demo_start( void )
+static int timer_demo_start( void )
 {
     OSStatus err = kNoErr;
 
     os_printf("timer demo\r\n");
 
     /* Create a new software timer,software is AutoReload */
-    err = rtos_init_timer(&timer_handle, 500, timer_alarm, 0);  ///500mS
+    err = bk_rtos_init_timer(&timer_handle, 500, timer_alarm, 0);  ///500mS
     if(kNoErr != err)
         goto exit;
 
     /* Create a new software timer,software is AutoReload */
-    err = rtos_init_timer(&timer_handle2, 2600, timer2_alarm, 0);  ///2.6S
+    err = bk_rtos_init_timer(&timer_handle2, 2600, timer2_alarm, 0);  ///2.6S
     if(kNoErr != err)
         goto exit;
 
     /* start (timer_handle) timer */
-    err = rtos_start_timer(&timer_handle);
+    err = bk_rtos_start_timer(&timer_handle);
     if(kNoErr != err)
         goto exit;
 
     /* start (timer_handle2) timer */
-    err = rtos_start_timer(&timer_handle2);
+    err = bk_rtos_start_timer(&timer_handle2);
     if(kNoErr != err)
         goto exit;
 
@@ -490,7 +503,7 @@ exit:
 }
 #endif
 
-int os_demo(int argc, char **argv)
+static int os_demo(int argc, char **argv)
 {
 	
     if(strcmp(argv[1], "thread") == 0)

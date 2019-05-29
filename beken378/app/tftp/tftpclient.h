@@ -11,7 +11,7 @@
 #include "saradc_pub.h"
 #include "uart_pub.h"
 #include "sys_rtos.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "error.h"
 #include "fake_clock_pub.h"
 #include "rw_pub.h"

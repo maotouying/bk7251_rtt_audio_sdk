@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include "board.h"
 #include "audio_device.h"
-
+#include "vad.h"
 
 #define MICPHONE_TEST
 
@@ -40,15 +40,15 @@ void record_and_play(int argc,char *argv[])
 		return;
 	}
 	
-	audio_device_init();
+	audio_device_init();					/*初始化 sound mic设备*/
 
-	audio_device_mic_open();
-	audio_device_mic_set_channel(1);
-	audio_device_mic_set_rate(16000);
+	audio_device_mic_open();				/*打开mic设备*/
+	audio_device_mic_set_channel(1);		/*设置adc通道*/
+	audio_device_mic_set_rate(16000);		/*设置adc采样率*/
 
 	if (vad_on)
 	{
-	    rt_kprintf("Vad is ON !!!!!!!!\r\n");
+	    rt_kprintf("Vad is ON !!!!!!!!\r\n");	/*进入vad检测*/
 		wb_vad_enter();
 	}
 	
@@ -71,10 +71,10 @@ void record_and_play(int argc,char *argv[])
 		}
 		else
 		{
-            actual_len = audio_device_mic_read(test_buf+mic_read_len,chunk_size);
+            actual_len = audio_device_mic_read(test_buf+mic_read_len,chunk_size);	/*mic 采集声音数据*/
 		    if(wb_vad_entry(test_buf+mic_read_len, actual_len))
 		    {
-		        rt_kprintf("Vad Detected !!!!!!!!\r\n");
+		        rt_kprintf("Vad Detected !!!!!!!!\r\n");			/*检测到声音*/
 			    break;
 		    }
 		}
@@ -84,14 +84,14 @@ void record_and_play(int argc,char *argv[])
 
 	if (vad_on)
 	{
-		wb_vad_deinit();
+		wb_vad_deinit();			/*关闭vad检测*/		
 	}
 
 	rt_kprintf("mic_read_len is %d\r\n", mic_read_len);
-	audio_device_mic_close();
+	audio_device_mic_close();		/*关闭mic设备*/
 
-	audio_device_open();
-	audio_device_set_rate(8000);
+	audio_device_open();			/*打开dac设备*/
+	audio_device_set_rate(8000);	/*设置dac采样率*/
 
 
 	while(1)
@@ -106,12 +106,12 @@ void record_and_play(int argc,char *argv[])
 		memcpy(buffer,test_buf+dac_wr_len,READ_SIZE);
 		dac_wr_len += READ_SIZE;
 
-        audio_device_write((uint8_t *)buffer, READ_SIZE);
+        audio_device_write((uint8_t *)buffer, READ_SIZE); /*dac播放数据*/
 	}
-	audio_device_close();
+	audio_device_close();								  /*关闭dac设备*/
 
 	if(test_buf)
-		sdram_free(test_buf);
+		sdram_free(test_buf);							/*释放ram内存*/
 
 #if CONFIG_SOUND_MIXER
     mixer_replay();

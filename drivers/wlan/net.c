@@ -26,7 +26,7 @@
 #include "power_save_pub.h"
 
 #include "lwip_netif_address.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #include <rtthread.h>
 #include <rtdevice.h>
@@ -34,6 +34,7 @@
 #include <wlan_dev.h>
 #include <wlan_mgnt.h>
 #include "drv_wlan.h"
+#include <sys/socket.h> 
 
 #if CFG_ROLE_LAUNCH
 #include "role_launch.h"
@@ -304,7 +305,7 @@ void *net_sock_to_interface(int sock)
     void *req_iface = NULL;
 
     NET_DBG("L%d, %s \r\n", __LINE__, __FUNCTION__);
-    getpeername(sock, (struct sockaddr *)&peer, &peerlen);
+    lwip_getpeername(sock, (struct sockaddr *)&peer, &peerlen);
     req_iface = net_ip_to_interface(peer.sin_addr.s_addr);
     return req_iface;
 }
@@ -568,10 +569,15 @@ int net_configure_address(struct ipv4_config *addr, void *intrfc_handle)
     }
     else
     {
+        #if (CFG_USE_APP_DEMO_VIDEO_TRANSFER)
+        // softap IP up, start dhcp server;
+		dhcp_server_start(net_get_uap_handle());
+        #else
         // softap IP up, start dhcp server;
         rt_kprintf("please use rtthread dncp start server\n");
         dhcpd_start(WIFI_DEVICE_AP_NAME);
-        // dhcp_server_start(net_get_uap_handle());
+        #endif
+
         up_iface = 0;
 
         // as the default netif is sta's netif, so ap need to send
@@ -663,6 +669,16 @@ int net_get_if_ip_mask(uint32_t *nm, void *intrfc_handle)
     NET_DBG("L%d, %s \r\n", __LINE__, __FUNCTION__);
     *nm = if_handle->netif->netmask.addr;
     return 0;
+}
+
+int net_get_if_gw_addr(uint32_t *ip, void *intrfc_handle)
+{
+	struct interface *if_handle = (struct interface *)intrfc_handle;
+
+	*ip = if_handle->netif->gw.addr;
+    NET_DBG("L%d, %s \r\n", __LINE__, __FUNCTION__);
+    
+	return 0;
 }
 
 void net_configure_dns(struct wlan_ip_config *ip)

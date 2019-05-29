@@ -1,4 +1,5 @@
 from building import *
+import string
 
 cwd  = GetCurrentDir()
 
@@ -36,12 +37,47 @@ path += [cwd + '/umac/src/apm']
 path += [cwd + '/umac/src/rc']
 path += [cwd + '/umac/src/mesh']
 
-libs = []
+sys_config = os.path.join(cwd, '..', 'app', 'config', 'sys_config.h')
+options = LocalOptions(sys_config)
 
-libpath = []
+wifi_lib_name = 'ip'
+
+if (0 == string.find(GetLocalDepend(options, 'CFG_SOC_NAME'), 'SOC_BK7231')):
+    wifi_lib_name += '_7231'
+elif (0 == string.find(GetLocalDepend(options, 'CFG_SOC_NAME'), 'SOC_BK7231U')):
+    wifi_lib_name += '_7231u'
+elif(0 == string.find(GetLocalDepend(options, 'CFG_SOC_NAME'), 'SOC_BK7221U')):
+    wifi_lib_name += '_7221u'
+else:
+    wifi_lib_name += '_unknown'
+"""it seems that CFG_USE_MCU_PS and CFG_USE_DEEP_PS not used in rwnx libarary
+if (GetLocalDepend(options, 'CFG_USE_MCU_PS') == 1):
+    wifi_lib_name += '_mcu'
+
+if (GetLocalDepend(options, 'CFG_USE_DEEP_PS') == 1):
+    wifi_lib_name += '_deep'
+"""
+
+if (GetLocalDepend(options, 'CFG_USE_BLE_PS') == 1):
+    wifi_lib_name += '_ble'
+
+if (GetLocalDepend(options, 'CFG_USE_STA_PS') == 1):
+    wifi_lib_name += '_sta'
+
+if (GetLocalDepend(options, 'CFG_USE_AP_PS') == 1):
+    wifi_lib_name += '_ap'
+
+print 'using rwnx_wifi: lib' + wifi_lib_name + '.a'
+
+libs = [wifi_lib_name]
+libpath = [cwd + '/']
 
 cppdefines = []
 
-group = DefineGroup('beken_ip', src, depend = [''], CPPPATH = path, CPPDEFINES = cppdefines, LIBS = libs, LIBPATH = libpath)
+group_use_lib = DefineGroup('beken_ip_lib', [], depend = [''], CPPPATH = path, CPPDEFINES = cppdefines, LIBS = libs, LIBPATH = libpath)
+
+group_build_lib = DefineGroup('beken_ip', src, depend = ['BUILD_LIB'], CPPPATH = path, CPPDEFINES = cppdefines, LIBS = libs, LIBPATH = libpath, LIBNAME = 'lib' + wifi_lib_name + '.a')
+
+group = group_use_lib + group_build_lib
 
 Return('group')

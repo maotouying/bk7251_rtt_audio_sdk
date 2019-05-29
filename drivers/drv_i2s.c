@@ -4,14 +4,10 @@
 
 #include "typedef.h"
 #include "sys_config.h"
-#include "rtos_pub.h"
-
-
-#include "beken378\driver\include\i2s_pub.h"
+#include "bk_rtos_pub.h"
+#include "i2s_pub.h"
 #include "i2s.h"
-
 #include "drv_i2s.h"
-
 
 #ifdef  RT_I2S_TRANS_DEBUG
 #define i2s_trans_dbg(fmt, ...)   rt_kprintf(fmt, ##__VA_ARGS__)
@@ -54,7 +50,7 @@ static rt_err_t rt_i2s_init(rt_device_t dev)
 
 }
 
-static rt_err_t rt_i2s_open(void)
+static rt_err_t rt_i2s_open(rt_device_t dev, rt_uint16_t oflag)
 {	
 
 	return RT_EOK;
@@ -67,19 +63,19 @@ static rt_err_t rt_i2s_close(rt_device_t dev)
 }
 
 
-static rt_err_t rt_i2s_read(rt_device_t dev, rt_off_t pos, void*buffer, rt_size_t size)
+static rt_err_t rt_i2s_read(rt_device_t dev, rt_off_t pos, void *buffer, rt_size_t size)
 {
-	return 0;
+	return RT_EOK;
 }
 
 
-static rt_err_t rt_i2s_write(rt_device_t dev, rt_off_t pos, void*buffer, rt_size_t size )
+static rt_err_t rt_i2s_write(rt_device_t dev, rt_off_t pos, const void *buffer, rt_size_t size )
 {
-	return 0;
+	return RT_EOK;
 }
 
 
-static rt_err_t rt_i2s_cotrol(rt_device_t dev)
+static rt_err_t rt_i2s_cotrol(rt_device_t dev, int cmd, void *args)
 {
 	return RT_EOK;
 }

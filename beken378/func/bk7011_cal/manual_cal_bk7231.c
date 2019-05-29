@@ -19,7 +19,7 @@
 #include "saradc_pub.h"
 #include "param_config.h"
 
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #if CFG_SUPPORT_ALIOS
 #include "hal/soc/soc.h"
 #else

@@ -71,7 +71,7 @@
 
 #include "sk_intf.h"
 #include "rw_pub.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "param_config.h"
 
 /* Define those to better describe your network interface. */

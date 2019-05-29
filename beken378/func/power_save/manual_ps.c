@@ -212,7 +212,7 @@ void power_save_wakeup_with_gpio(UINT32 gpio_index)
 /*
  *  deep sleep
  *
-*/
+ */
 void deep_sleep_wakeup_with_timer(UINT32 sleep_time)
 {
     UINT32 reg;
@@ -228,20 +228,20 @@ void deep_sleep_wakeup_with_timer(UINT32 sleep_time)
     if(sleep_time != 0xffffffff)
     {
         os_printf("sleep with rtc,%d ms\r\n", sleep_time);
-        deep_param.param = ((sleep_time * 102400) / 3125) ;
+        deep_param.sleep_time= ((sleep_time * 102400) / 3125) ;
 
-        if(deep_param.param > 0xffff) //only 16 bit
-            deep_param.param = 0xffff;
-        else if(deep_param.param < 32)
-            deep_param.param = 32;
+        if(deep_param.sleep_time > 0xffff) //only 16 bit
+            deep_param.sleep_time = 0xffff;
+        else if(deep_param.sleep_time < 32)
+            deep_param.sleep_time = 32;
     }
     else
     {
         os_printf("sleep forever\r\n");
-        deep_param.param = 0xffffffff;
+        deep_param.sleep_time = 0xffffffff;
     }
 
-    deep_param.deep_wkway = PS_DEEP_WAKEUP_RTC;
+    deep_param.wake_up_way = PS_DEEP_WAKEUP_RTC;
     os_printf("enter rtc ps\r\n");
     GLOBAL_INT_DECLARATION();
     GLOBAL_INT_DISABLE();
@@ -270,45 +270,66 @@ void deep_sleep_wakeup_with_gpio(UINT32 gpio_index_map,UINT32 gpio_edge_map)
 
     if(power_save_ps_mode_get() != PS_NO_PS_MODE)
     {
-        os_printf("can't gpio ps,ps in mode %d!\r\n", power_save_ps_mode_get());
+        BK_DEEP_SLEEP_PRT("can't gpio ps,ps in mode %d!\r\n", power_save_ps_mode_get());
         return ;
     }
 
-    os_printf("enter deep with gpio ps %x %x\r\n",gpio_index_map,gpio_edge_map);
+    BK_DEEP_SLEEP_PRT("enter deep with gpio ps %x %x\r\n",gpio_index_map,gpio_edge_map);
 
     GLOBAL_INT_DECLARATION();
     GLOBAL_INT_DISABLE();
-    deep_param.deep_wkway = PS_DEEP_WAKEUP_GPIO;
-    deep_param.param = gpio_index_map;
-    deep_param.gpio_lv= gpio_edge_map;
+    deep_param.wake_up_way = PS_DEEP_WAKEUP_GPIO;
+    deep_param.gpio_index_map = gpio_index_map;
+    deep_param.gpio_edge_map= gpio_edge_map;
     sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_RTOS_DEEP_SLEEP, &deep_param);
     delay(5);
     GLOBAL_INT_RESTORE();
     os_printf("exit gpio ps\r\n");
 }
 
-void deep_sleep_wakeup_with_xtal_32K(UINT32 sleep_second)
+void bk_enter_deep_sleep_mode(PS_DEEP_CTRL_PARAM *deep_param)
 {
-	UINT32 reg, param;
-	PS_DEEP_CTRL_PARAM deep_param;
+    UINT32 param;
+    UINT32 i;
+    ASSERT(deep_param != NULL);
+	
 	if(power_save_ps_mode_get() != PS_NO_PS_MODE)
     {
-        os_printf("can't gpio ps,ps in mode %d!\r\n", power_save_ps_mode_get());
+        BK_DEEP_SLEEP_PRT("can't gpio ps,ps in mode %d!\r\n", power_save_ps_mode_get());
         return ;
     }
 
-	os_printf("enter xtal 32k deep ps :%d s\r\n",sleep_second);
-	if(sleep_second > 0x1ffff)
-		sleep_second = 0x1ffff;
+	if((deep_param->wake_up_way == PS_DEEP_WAKEUP_GPIO) || (deep_param->wake_up_way & PS_DEEP_WAKEUP_GPIO_RTC))
+	{
+		if(deep_param->gpio_index_map)
+		{
+			rt_kprintf("---enter deep sleep :wake up with gpio 0~31 ps: 0x%x 0x%x \r\n",
+			deep_param->gpio_index_map,deep_param->gpio_edge_map);
+		}
+		
+		if(deep_param->gpio_last_index_map )
+		{
+			rt_kprintf("---enter deep sleep :wake up with gpio32~39 ps: 0x%x 0x%x \r\n",
+			deep_param->gpio_last_index_map,deep_param->gpio_last_edge_map);
+		}		
+	}
 	
-	deep_param.param = 32768 * sleep_second;
-    deep_param.deep_wkway = PS_DEEP_WAKEUP_RTC;
-	
+	if((deep_param->wake_up_way == PS_DEEP_WAKEUP_RTC) || (deep_param->wake_up_way & PS_DEEP_WAKEUP_GPIO_RTC))
+	{
+		rt_kprintf("---enter deep sleep :wake up with xtal 32k ps :%d s\r\n",deep_param->sleep_time);
+		
+		if(deep_param->sleep_time> 0x1ffff)
+		{
+			deep_param->sleep_time = 0x1ffff;		
+		}
+		deep_param->sleep_time = 32768*deep_param->sleep_time;
+	}
+		
 	GLOBAL_INT_DECLARATION();
-    GLOBAL_INT_DISABLE();
-    sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_RTOS_DEEP_SLEEP, &deep_param);
-    delay(5);
-    GLOBAL_INT_RESTORE();
+	GLOBAL_INT_DISABLE();
+	sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_RTOS_DEEP_SLEEP, deep_param);
+	delay(5);
+	GLOBAL_INT_RESTORE();
 }
 
 

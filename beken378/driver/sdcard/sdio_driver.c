@@ -10,6 +10,7 @@
 #include "mem_pub.h"
 #include "icu_pub.h"
 #include "gpio_pub.h"
+#include "bk_rtos_pub.h"
 
 /******************************************************************************/
 /**************************** platform function *******************************/
@@ -104,7 +105,7 @@ void sdio_register_reenable(void)
     reg |= (SDCARD_FIFO_RX_FIFO_RST | SDCARD_FIFO_TX_FIFO_RST | SDCARD_FIFO_SD_STA_RST);
     REG_WRITE(REG_SDCARD_FIFO_THRESHOLD, reg);
 
-    rtos_delay_milliseconds(5);
+    bk_rtos_delay_milliseconds(5);
     /*Config tx/rx fifo threshold*/
     reg = ((SDCARD_RX_FIFO_THRD & SDCARD_FIFO_RX_FIFO_THRESHOLD_MASK)
            << SDCARD_FIFO_RX_FIFO_THRESHOLD_POSI)
@@ -441,11 +442,11 @@ int wait_Receive_Data(void)
 {
     uint32 ret = SD_ERR_LONG_TIME_NO_RESPONS, status = 0;
     uint32 timeoutcnt = 0;
-    extern UINT32 rtos_get_time(void);
-    uint32 start_tm = rtos_get_time();
+    //extern UINT32 bk_rtos_get_time(void);
+    uint32 start_tm = bk_rtos_get_time();
     while (1)
     {
-        if(rtos_get_time() > start_tm + 4000) // 4s
+        if(bk_rtos_get_time() > start_tm + 4000) // 4s
         {
             ret = SD_ERR_LONG_TIME_NO_RESPONS;
             break;

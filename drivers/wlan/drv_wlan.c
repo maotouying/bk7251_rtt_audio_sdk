@@ -27,7 +27,7 @@
 #include "sk_intf.h"
 #include "rw_pub.h"
 #include "error.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "param_config.h"
 
 /* Define those to better describe your network interface. */
@@ -577,6 +577,11 @@ static rt_err_t _wifi_softap(rt_device_t dev, void *passwd)
     wNetConfig.dhcp_mode = DHCP_SERVER;
     wNetConfig.wifi_retry_interval = 100;
 
+    os_strcpy((char *)wNetConfig.local_ip_addr, DHCPD_SERVER_IP);
+    os_strcpy((char *)wNetConfig.net_mask, "255.255.255.0");
+    os_strcpy((char *)wNetConfig.gateway_ip_addr, DHCPD_SERVER_IP);
+    os_strcpy((char *)wNetConfig.dns_server_ip_addr, DHCPD_SERVER_IP);
+
     rt_kprintf("_wifi_softap: ssid:%.*s key:%.*s\r\n", sizeof(wNetConfig.wifi_ssid), wNetConfig.wifi_ssid, sizeof(wNetConfig.wifi_key), wNetConfig.wifi_key);
     bk_wlan_start(&wNetConfig);
 
@@ -731,68 +736,72 @@ extern int bk_wlan_dtim_rf_ps_timer_start(void);
 extern int bk_wlan_dtim_rf_ps_timer_pause(void);
 static int _wifi_power_manager(int level)
 {
-
-#ifdef CFG_USE_MCU_PS
  switch (level)
  {
     case 0:
     {
+        #if CFG_USE_MCU_PS
         /* disable cpu sleep */
         bk_wlan_mcu_ps_mode_disable();
+        #endif
+        #if CFG_USE_STA_PS
         /* disable rf sleep */
         bk_wlan_dtim_rf_ps_disable_send_msg();
         /* pause rf timer */
         bk_wlan_dtim_rf_ps_timer_pause();
+        #endif
         break;
     }
 
     case 1:
     {
+        #if CFG_USE_MCU_PS
         /* enable cpu sleep */
         bk_wlan_mcu_ps_mode_enable();
+        #endif
+        #if CFG_USE_STA_PS
         /* disable rf sleep */
         bk_wlan_dtim_rf_ps_disable_send_msg();
         /* pause rf timer */
         bk_wlan_dtim_rf_ps_timer_pause();
+        #endif
         break;
     }
 
-    case 2:
+	case 2:
     {
-        /* enable cpu sleep */
-        bk_wlan_mcu_ps_mode_enable();
+        #if CFG_USE_MCU_PS
+        /* disable cpu sleep */
+        bk_wlan_mcu_ps_mode_disable();
+        #endif
+        #if CFG_USE_STA_PS
         /* enable rf sleep */
         bk_wlan_dtim_rf_ps_mode_enable();
-        /* pause rf timer */
-        bk_wlan_dtim_rf_ps_timer_pause();
-		break;
+        /* start rf timer */
+        bk_wlan_dtim_rf_ps_timer_start();
+        #endif
+        break;
     }
 
     case 3:
     {
+        #if CFG_USE_MCU_PS
     	/* enable cpu sleep */
         bk_wlan_mcu_ps_mode_enable();
+        #endif
+        #if CFG_USE_STA_PS
         /* enable rf sleep */
         bk_wlan_dtim_rf_ps_mode_enable();
         /* start rf timer */
         bk_wlan_dtim_rf_ps_timer_start();
+        #endif
         break;
     }
-	case 4:
-    {
-        /* disable cpu sleep */
-        bk_wlan_mcu_ps_mode_disable();
-        /* enable rf sleep */
-        bk_wlan_dtim_rf_ps_mode_enable();
-        /* start rf timer */
-        bk_wlan_dtim_rf_ps_timer_start();
-        break;
-    }
+
 
     default:
         break;
  }
-#endif
 }
 
 #if LWIP_IPV4 && LWIP_IGMP

@@ -4,7 +4,7 @@
 #include "ke_msg.h"
 #include "uart_pub.h"
 #include "rw_ieee80211.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "rw_ieee80211.h"
 #include "apm_task.h"
 #include "me_task.h"

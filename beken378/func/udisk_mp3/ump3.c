@@ -3,7 +3,7 @@
 #include "ump3_pub.h"
 #include "usb_pub.h"
 #include "uart_pub.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "drv_model_pub.h"
 #include "diskio.h"
 
@@ -48,13 +48,13 @@ void um_uninit(void)
 
 	if(ump3_thread_handle)
 	{		
-	    ret = rtos_delete_thread(&ump3_thread_handle);
+	    ret = bk_rtos_delete_thread(&ump3_thread_handle);
 	    ASSERT(kNoErr == ret);
 	}
 
 	if(ump3_device_connect_sema)
 	{
-		rtos_deinit_semaphore(&ump3_device_connect_sema);
+		bk_rtos_deinit_semaphore(&ump3_device_connect_sema);
 	}
 }
 
@@ -63,7 +63,7 @@ void um_connect_cb(void)
     if(ump3_device_connect_sema)
     {    	
 		UM_PRT("um_connect_cb\r\n");
-        rtos_set_semaphore(&ump3_device_connect_sema);
+        bk_rtos_set_semaphore(&ump3_device_connect_sema);
     }	
 }
 
@@ -73,7 +73,7 @@ void um_thread_main(void *arg)
 	
 	while(1)
 	{			
-        result = rtos_get_semaphore(&ump3_device_connect_sema, BEKEN_WAIT_FOREVER);
+        result = bk_rtos_get_semaphore(&ump3_device_connect_sema, BEKEN_WAIT_FOREVER);
 		if(kNoErr == result)
 		{
 			UM_PRT("test_mount\r\n");
@@ -96,7 +96,7 @@ uint32_t um_work_init(void)
 		goto work_exit;
 	}
 	
-    ret = rtos_create_thread(&ump3_thread_handle, 
+    ret = bk_rtos_create_thread(&ump3_thread_handle, 
             THD_UMP3_PRIORITY,
             "ump3_thread", 
             (beken_thread_function_t)um_thread_main, 
@@ -111,7 +111,7 @@ uint32_t um_work_init(void)
 	UM_PRT("um_work_init\r\n");
 	if(NULL == ump3_device_connect_sema)
 	{
-		ret = rtos_init_semaphore(&ump3_device_connect_sema, 1);
+		ret = bk_rtos_init_semaphore(&ump3_device_connect_sema, 1);
 		if (kNoErr != ret) 
 		{
 			UM_PRT("create device connect sema failed\r\n");

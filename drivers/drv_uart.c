@@ -32,6 +32,8 @@
 #include "drv_uart.h"
 #include "uart.h"
 #include "icu_pub.h"
+#include "board.h"
+#include "drv_model_pub.h"
 
 #ifdef RT_USING_SERIAL
 

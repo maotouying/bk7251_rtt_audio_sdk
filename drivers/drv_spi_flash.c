@@ -4,7 +4,7 @@
 
 #include "typedef.h"
 #include "sys_config.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #ifdef BEKEN_USING_SPI_FLASH
 

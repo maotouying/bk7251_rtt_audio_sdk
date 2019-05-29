@@ -32,7 +32,7 @@
 #pragma once
 
 #include "include.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "flash_pub.h"
 
 /** @addtogroup BK_PLATFORM
@@ -67,6 +67,7 @@ typedef enum
     BK_PARTITION_APPLICATION,
     BK_PARTITION_RF_FIRMWARE,
     BK_PARTITION_NET_PARAM,
+    BK_PARTITION_USR_CONFIG,
     BK_PARTITION_MAX,
 } bk_partition_t;
 

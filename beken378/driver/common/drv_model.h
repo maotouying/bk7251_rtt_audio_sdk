@@ -1,7 +1,7 @@
 #ifndef _DRV_MODEL_H_
 #define _DRV_MODEL_H_
 
-#define DD_MAX_DEV              (8)
+#define DD_MAX_DEV              (10)
 #define DD_MAX_SDEV             (16)
 
 #define DD_MAX_DEV_MASK         (DD_MAX_DEV - 1)

@@ -3,6 +3,7 @@
 
 #if CFG_USE_SPIDMA
 #include "video_transfer.h"
+#include "gpio_pub.h"
 
 #include "spidma_pub.h"
 #include "spidma_intf.h"
@@ -25,6 +26,8 @@
 #define SPIDMA_INTF_WPRT            null_prf
 #define SPIDMA_INTF_FATAL           null_prf
 #endif
+
+#define CAMERA_REV180_GPIO_INDEX    GPIO17
 
 #define RX_TIMEOUT_30US             30
 #define RX_TIMEOUT_500US            500
@@ -106,6 +109,7 @@ static void spidma_intfer_config_desc(void* data)
     spidma_intf.txbuf_len = 0;
 
     spidma_intf.tx_handler = NULL;
+    
 
     spidma_intf.mode = 0;
     spidma_intf.timeout_val = SPIDMA_RXDATA_TIMEOUT;
@@ -113,7 +117,9 @@ static void spidma_intfer_config_desc(void* data)
 
  #if CFG_GENERAL_DMA
     spidma_intf.dma_rx_handler = spidma_intf_node_rx_handler;
-    spidma_intf.dma_channel = SPIDMA_CHNAL;
+    spidma_intf.dma_rx_channel = SPIDMA_CHNAL;
+    spidma_intf.dma_tx_handler = NULL;
+    spidma_intf.dma_tx_channel = GDMA_CHANNEL_MAX;
 #endif   
 }
 
@@ -135,6 +141,24 @@ void spidma_intfer_deinit(void)
 
     spidma_hdl = DD_HANDLE_UNVALID;
 }
+
+void spi_camera_flip(UINT8 n)
+{    
+    UINT8 data;
+
+    if(n)
+    {
+        data= 1;		//flip 180
+    }
+	else
+    {
+        data = 0;		//normal		
+    }
+	
+    bk_gpio_config_output(CAMERA_REV180_GPIO_INDEX);
+    bk_gpio_output(CAMERA_REV180_GPIO_INDEX, data);
+}
+
 /*---------------------------------------------------------------------------*/
 
 #endif  // CFG_USE_SPIDMA

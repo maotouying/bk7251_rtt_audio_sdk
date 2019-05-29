@@ -76,7 +76,7 @@ static void report_lsig(int len, int8_t rssi, int index)
     uint8_t data[64]; // mac header & qos & vector
     uint16_t seq_frag;
     int i = 0;
-    uint32_t time = rtos_get_time();
+    uint32_t time = bk_rtos_get_time();
     
     if (rts_tbl[index].security == 0xFF) {
         return;
@@ -168,7 +168,7 @@ void lsig_input(int len, int8_t rssi, uint32_t time_ms)
         os_memcpy(rts_tbl[rts_tbl_num].ra, last_rts.ra, 12);
         rts_tbl[rts_tbl_num].security = 0xFF;
         rts_tbl[rts_tbl_num].rssi = rssi;
-        rts_tbl[rts_tbl_num].last_time = rtos_get_time();
+        rts_tbl[rts_tbl_num].last_time = bk_rtos_get_time();
         rts_tbl[rts_tbl_num].last_len = len;
         rts_tbl_num++;
         return;
@@ -188,7 +188,7 @@ void lsig_input(int len, int8_t rssi, uint32_t time_ms)
     rts_tbl[rep_index].security = 0xFF;
     rts_tbl[rep_index].rssi = rssi;
     rts_tbl[rep_index].last_len = len;
-    rts_tbl[rep_index].last_time = rtos_get_time();
+    rts_tbl[rep_index].last_time = bk_rtos_get_time();
 }
 
 

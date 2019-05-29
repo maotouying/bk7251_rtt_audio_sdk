@@ -72,42 +72,6 @@ typedef struct
     volatile UINT32 rx_remain_data_cnt;
 } i2s_trans_t;
 
-typedef struct i2s_configuration
-{
-	UINT32 mode;
-/*
-		mdoe:
-		bit0~2: 	mode & 0x7		000:I2S
-									001:Left Justified
-									010:Right Justified
-									011:reserve
-									100:Short Frame Sync
-									101:Long Frame Sync
-									110:Normal 2B+D
-									111:Delay 2B+D 
-		
-		bit3:		mode & 0x08 	0:LRCK	no turn
-									1:LRCK	turn
-	
-		bit4:		mode & 0x10 	0:SCK	no turn
-									1:SCK	turn	
-							
-		bit5:		mode & 0x20 	0:MSB	first send/receive
-									1:LSB	first send/receive
-	
-		bit8~10:	mode & 0x700	0~7:Sync length only Long Frame Sync effective
-	
-		bit12~14:	mode & 0x7000	0~7: 2B+D PCM ：D length
-							
-*/
-
-	
-	UINT32 fifo_level;
-	UINT32 sample_rate;
-	UINT32 bits_per_sample;
-};
-
-
 typedef struct
 {
     UINT8 rx_level;

@@ -9,7 +9,7 @@
 #include "saradc_pub.h"
 #include "temp_detect_pub.h"
 #include "sys_rtos.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "sys_ctrl_pub.h"
 #include "saradc_intf.h"
 
@@ -50,20 +50,20 @@ int adc_obj_start(ADC_OBJ* handle)
         TADC_WARNING_PRINTF("adc obj start with no initial\r\n");
         return -1;
     }
-	rtos_lock_mutex(&tadc_entity->obj_list_mutex);
+	bk_rtos_lock_mutex(&tadc_entity->obj_list_mutex);
 	target = tadc_entity->adc_obj_list;
 	while(target) 
 	{
 		if(target == handle) 
 		{
-		    rtos_unlock_mutex(&tadc_entity->obj_list_mutex);
+		    bk_rtos_unlock_mutex(&tadc_entity->obj_list_mutex);
 		    return -1;	//already exist.
 		}
 		target = target->next;
 	}
 	handle->next = tadc_entity->adc_obj_list;
 	tadc_entity->adc_obj_list = handle;
-	rtos_unlock_mutex(&tadc_entity->obj_list_mutex);
+	bk_rtos_unlock_mutex(&tadc_entity->obj_list_mutex);
 	return 0;
 }
 
@@ -71,7 +71,7 @@ void adc_obj_stop(ADC_OBJ* handle)
 {
 	ADC_OBJ** curr;
 	
-	rtos_lock_mutex(&tadc_entity->obj_list_mutex);
+	bk_rtos_lock_mutex(&tadc_entity->obj_list_mutex);
 	for(curr = &tadc_entity->adc_obj_list; *curr; ) 
 	{
 		ADC_OBJ* entry = *curr;
@@ -84,7 +84,7 @@ void adc_obj_stop(ADC_OBJ* handle)
 			curr = &entry->next;
 		}
 	}
-	rtos_unlock_mutex(&tadc_entity->obj_list_mutex);
+	bk_rtos_unlock_mutex(&tadc_entity->obj_list_mutex);
 }
 
 static void sadc_detect_handler(void)
@@ -248,18 +248,18 @@ static void tadc_thread_entry(void *pv)
     while(1)
     {
 		rt_thread_delay(scan_tick);
-		rtos_lock_mutex(&tadc_entity->obj_list_mutex);
+		bk_rtos_lock_mutex(&tadc_entity->obj_list_mutex);
 		for(target=tadc_entity->adc_obj_list; target; target=target->next)
 		{
 			tadc_obj_handler(target);
 		}
-		rtos_unlock_mutex(&tadc_entity->obj_list_mutex);
+		bk_rtos_unlock_mutex(&tadc_entity->obj_list_mutex);
     }
 
 tadc_exit:
     tadc_entity_deinit(&tadc_entity);
     tadc_entity = NULL;
-    rtos_delete_thread(NULL);
+    bk_rtos_delete_thread(NULL);
 }
 
 void saradc_work_create(UINT32 scan_interval_ms)

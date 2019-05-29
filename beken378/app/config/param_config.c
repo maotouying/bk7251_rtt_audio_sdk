@@ -147,6 +147,13 @@ uint8_t wifi_get_vif_index_by_mac(char *mac)
 
 int wifi_set_mac_address(char *mac)
 {
+
+    if(mac[0]&0x01)
+    {
+        os_printf("set failed,can be a bc/mc address\r\n");
+        return 0;
+    }
+
    os_memcpy(system_mac, mac, 6);
 
 #if (WIFI_MAC_POS == MAC_EFUSE)
@@ -156,6 +163,8 @@ int wifi_set_mac_address(char *mac)
 #elif (WIFI_MAC_POS == MAC_ITEM)
     save_info_item(WIFI_MAC_ITEM, (UINT8 *)system_mac, NULL, NULL);
 #endif
+
+    return 0;
 }
 
 #endif

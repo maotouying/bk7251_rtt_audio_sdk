@@ -27,6 +27,7 @@
 #include "fusb_pub.h"
 #endif
 
+extern void rwnx_cal_initial_calibration(void);
 UINT32 func_init(void)
 {
     char temp_mac[6];
@@ -68,6 +69,8 @@ UINT32 func_init(void)
     manual_cal_load_lpf_iq_tag_flash();
     manual_cal_load_xtal_tag_flash();
     #endif // (CFG_SOC_NAME != SOC_BK7231)
+
+    rwnx_cal_initial_calibration();
 #endif    
 
 #if CFG_SDIO
@@ -98,6 +101,10 @@ UINT32 func_init(void)
 //	key_initialization();
 	#endif
 
+#if (CFG_SOC_NAME == SOC_BK7221U)
+    extern void usb_plug_func_open(void);
+    usb_plug_func_open();
+#endif
     FUNC_PRT("[FUNC]func_init OVER!!!\r\n\r\n");
     return 0;
 }

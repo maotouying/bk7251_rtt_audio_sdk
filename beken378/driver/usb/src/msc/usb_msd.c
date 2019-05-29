@@ -22,7 +22,7 @@
 #include "mu_mapi.h"
 #include "mu_none.h"
 #include "usb_msd.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #if CFG_SUPPORT_MSD
 extern MUSB_FunctionClient MGC_xxxFunctionClient;
@@ -236,7 +236,7 @@ uint32_t MGC_MsdReadSyncInit(void)
 
     if(NULL == msd_rd_sema)
     {
-        ret = rtos_init_semaphore(&msd_rd_sema, 1);
+        ret = bk_rtos_init_semaphore(&msd_rd_sema, 1);
         if (kNoErr != ret)
         {
             MUSB_PRT("MGC_MsdReadSyncInit failed\r\n");
@@ -252,7 +252,7 @@ uint32_t MGC_MsdWriteSyncInit(void)
 
     if(NULL == msd_wr_sema)
     {
-        ret = rtos_init_semaphore(&msd_wr_sema, 1);
+        ret = bk_rtos_init_semaphore(&msd_wr_sema, 1);
         if (kNoErr != ret)
         {
             MUSB_PRT("MGC_MsdReadSyncInit failed\r\n");
@@ -264,12 +264,12 @@ uint32_t MGC_MsdWriteSyncInit(void)
 
 OSStatus MGC_MsdReadSyncWaiting(uint32_t timeout)
 {
-    return rtos_get_semaphore(&msd_rd_sema, timeout);
+    return bk_rtos_get_semaphore(&msd_rd_sema, timeout);
 }
 
 OSStatus MGC_MsdWriteSyncWaiting(uint32_t timeout)
 {
-    return rtos_get_semaphore(&msd_wr_sema, timeout);
+    return bk_rtos_get_semaphore(&msd_wr_sema, timeout);
 }
 
 
@@ -278,7 +278,7 @@ uint32_t MGC_MsdReadComplete(MUSB_HfiVolumeHandle hVolume,
 
 {
     MUSB_PRT("MGC_MsdReadComplete\r\n");
-    rtos_set_semaphore(&msd_rd_sema);
+    bk_rtos_set_semaphore(&msd_rd_sema);
 
     return 0;
 }
@@ -288,7 +288,7 @@ uint32_t MGC_MsdWriteComplete(MUSB_HfiVolumeHandle hVolume,
 
 {
     MUSB_PRT("MGC_MsdWriteComplete\r\n");
-    rtos_set_semaphore(&msd_wr_sema);
+    bk_rtos_set_semaphore(&msd_wr_sema);
 
     return 0;
 }

@@ -30,6 +30,12 @@
 #if (CFG_SOC_NAME == SOC_BK7221U)  
 #define DCO_CLK_SELECT          DCO_CALIB_180M
 #define USE_DCO_CLK_POWON       1
+
+UINT8  calib_charger[3] = {
+    0x23,   //vlcf
+    0x15,   //icp
+    0x1b    //vcv
+    };
 #else
 #define DCO_CLK_SELECT          DCO_CALIB_120M
 #define USE_DCO_CLK_POWON       0
@@ -374,14 +380,12 @@ void sctrl_init(void)
 	REG_WRITE(SCTRL_CLK_GATING, 0x3f);
 
 	/* increase VDD voltage*/
-	reg = REG_READ(SCTRL_DIGTAL_VDD);
-	reg &= (~(DIG_VDD_ACTIVE_MASK << DIG_VDD_ACTIVE_POSI));
     #if CFG_SYS_REDUCE_NORMAL_POWER
-	reg |= (4 << DIG_VDD_ACTIVE_POSI);
+	param = 4;
     #else
-	reg |= (5 << DIG_VDD_ACTIVE_POSI);
+	param = 5;
     #endif
-	REG_WRITE(SCTRL_DIGTAL_VDD, reg);
+    sctrl_ctrl(CMD_SCTRL_SET_VDD_VALUE, &param);
 
 	#if CFG_USE_STA_PS
 	/*32K Rosc calib*/
@@ -1136,32 +1140,65 @@ void sctrl_exit_rtos_idle_sleep(void)
     os_printf("idle wake up!\r\n");    
 }
 
-void sctrl_enter_rtos_deep_sleep(PS_DEEP_CTRL_PARAM deep_param)
+void sctrl_enter_rtos_deep_sleep(PS_DEEP_CTRL_PARAM *deep_param)
 {
     DD_HANDLE flash_hdl;
     UINT32 status;
     UINT32 param;
     UINT32 reg;
     UINT32 i;
-	//	uart_wait_tx_over();
-    /* close all peri clock*/
-    
-	//   REG_WRITE(ICU_PERI_CLK_PWD, 0xfffff);  //  icu: 0x2;
+	
+	uart_wait_tx_over();
+	
+	/* close all peri clock*/
+	REG_WRITE(ICU_PERI_CLK_PWD, 0xfffff);  //  icu: 0x2;
+      
+	uart2_exit();
+	uart1_exit();
 
-	//    uart2_exit();
-	//    uart1_exit();
-    
-    /* ROSC _TIMER_disable*/
-    reg = REG_READ(SCTRL_ROSC_TIMER);
-   	// reg &= ~ (ROSC_TIMER_ENABLE_BIT);
-   	reg = (reg| ROSC_TIMER_INT_STATUS_BIT &(~ (ROSC_TIMER_ENABLE_BIT)));
-    REG_WRITE(SCTRL_ROSC_TIMER,reg);      //sys_ctrl : 0x47;
+	/*ana_reg set*/
+    REG_WRITE(SCTRL_ANALOG_CTRL0, 0x7819a59b);     
+    REG_WRITE(SCTRL_ANALOG_CTRL1, 0x7819a59b);     
+    REG_WRITE(SCTRL_ANALOG_CTRL2, 0x84036080);     
+    REG_WRITE(SCTRL_ANALOG_CTRL3, 0x180004a0);     
+    REG_WRITE(SCTRL_ANALOG_CTRL4, 0x84200e52);     
+    REG_WRITE(SCTRL_ANALOG_CTRL5, 0x3b13b13b);     
+    REG_WRITE(SCTRL_ANALOG_CTRL6, 0xb09350);     
+    REG_WRITE(SCTRL_ANALOG_CTRL7, 0x441a7f0);     
+    REG_WRITE(SCTRL_ANALOG_CTRL8, 0x3b187c);     
+    REG_WRITE(SCTRL_ANALOG_CTRL9, 0x82204007);     
+    REG_WRITE(SCTRL_ANALOG_CTRL10, 0x80801432);   	
+    ps_delay(10);	
 
-    REG_WRITE(SCTRL_GPIO_WAKEUP_EN,0x0); //sys_ctrl : 0x48;
+	/*clear int*/
+	REG_WRITE(ICU_INTERRUPT_ENABLE, 0);
+	
+	/*  disable gpio0~31*/
+    REG_WRITE(SCTRL_GPIO_WAKEUP_EN,0x0);  //sys_ctrl : 0x48;
+    REG_WRITE(SCTRL_GPIO_WAKEUP_INT_STATUS,0xFFFFFFFF);  //sys_ctrl : 0x4a; 
+    
+	/*	disable gpio32~39*/
+	REG_WRITE(SCTRL_GPIO_WAKEUP_EN1,0x0);  //sys_ctrl : 0x51;
+	REG_WRITE(SCTRL_GPIO_WAKEUP_INT_STATUS1,0xFF);  //sys_ctrl : 0x53; 
 
     REG_WRITE(SCTRL_BLOCK_EN_MUX, 0x0);   //sys_ctrl : 0x4F;
+    
 
-
+	/* ROSC_POWER DOWN*/
+	reg = REG_READ(SCTRL_SLEEP);
+	reg = reg| ROSC_PWD_DEEPSLEEP_BIT ;
+	REG_WRITE(SCTRL_SLEEP,reg); 
+    
+    /* ROSC_TIMER_int_clear*/
+    reg = REG_READ(SCTRL_ROSC_TIMER);
+   	reg = reg| ROSC_TIMER_INT_STATUS_BIT ;
+    REG_WRITE(SCTRL_ROSC_TIMER,reg);      //sys_ctrl : 0x47;
+    
+	/*ROSC_TIMER close */
+	reg = REG_READ(SCTRL_ROSC_TIMER);
+	reg = reg & (~ROSC_TIMER_ENABLE_BIT);																   //'C'
+	REG_WRITE(SCTRL_ROSC_TIMER,reg); 
+	
     reg = REG_READ(SCTRL_LOW_PWR_CLK);
     reg &=~(LPO_CLK_MUX_MASK);
     //reg |=(LPO_SRC_ROSC << LPO_CLK_MUX_POSI);
@@ -1213,32 +1250,26 @@ void sctrl_enter_rtos_deep_sleep(PS_DEEP_CTRL_PARAM deep_param)
     REG_WRITE(SCTRL_CONTROL,reg); //sys_ctrl : 0x02;
 
     ps_delay(10);
-
-    /* ALL disable*/
-    /*reg = 0x0;
-    reg &= ~(BLOCK_EN_WORD_MASK << BLOCK_EN_WORD_POSI);
-    reg = reg | (BLOCK_EN_WORD_PWD << BLOCK_EN_WORD_POSI);
-    reg &= ~(BLOCK_EN_VALID_MASK);
-    REG_WRITE(SCTRL_BLOCK_EN_CFG, reg);    //sys_ctrl : 0x4B;*/
-
-    reg = 0xFFFFFFFF;
-    REG_WRITE(SCTRL_GPIO_WAKEUP_INT_STATUS,reg);    
-
-    if(deep_param.deep_wkway == PS_DEEP_WAKEUP_RTC
-        && deep_param.param != 0xffffffff)
+    if (((deep_param->wake_up_way == PS_DEEP_WAKEUP_RTC) || (deep_param->wake_up_way & PS_DEEP_WAKEUP_GPIO_RTC))
+		&& (deep_param->sleep_time!= 0xffffffff))
     {
-/*ROSC_TIMER  init*/
+	/*ROSC_TIMER  init*/
 #if (CFG_SOC_NAME == SOC_BK7221U)
-		reg = (deep_param.param >> 16)& 0xffff;                                          //'A'
+		reg = (deep_param->sleep_time >> 16)& 0xffff;                                          //'A'
 		REG_WRITE(SCTRL_ROSC_TIMER_PERIOD_HIGH,reg);
 #endif
+
+        reg = REG_READ(SCTRL_SLEEP);
+        reg &= reg & (~ROSC_PWD_DEEPSLEEP_BIT);
+        REG_WRITE(SCTRL_SLEEP, reg);  
+
         reg = REG_READ(SCTRL_ROSC_TIMER);
         reg |= ROSC_TIMER_INT_STATUS_BIT;                                                                   //'C'
         REG_WRITE(SCTRL_ROSC_TIMER,reg);  //sys_ctrl : 0x47;
 		
         reg = REG_READ(SCTRL_ROSC_TIMER);
         reg &= ~(ROSC_TIMER_PERIOD_MASK << ROSC_TIMER_PERIOD_POSI);
-        reg |= ((deep_param.param & ROSC_TIMER_PERIOD_POSI) << ROSC_TIMER_PERIOD_POSI);
+        reg |= ((deep_param->sleep_time & ROSC_TIMER_PERIOD_MASK) << ROSC_TIMER_PERIOD_POSI);
         REG_WRITE(SCTRL_ROSC_TIMER,reg);   //sys_ctrl : 0x47;                         //'D'
 		
         reg = REG_READ(SCTRL_ROSC_TIMER);
@@ -1253,99 +1284,93 @@ void sctrl_enter_rtos_deep_sleep(PS_DEEP_CTRL_PARAM deep_param)
        	reg = (reg |(BLOCK_EN_WORD_PWD<< 20 )|BLK_EN_FLASH|BLK_EN_ROSC32K|BLK_EN_26M_XTAL|BLK_EN_32K_XTAL|BLK_EN_DIGITAL_CORE|BLK_EN_ANALOG_SYS_LDO);
         REG_WRITE(SCTRL_BLOCK_EN_CFG, reg);                  //sys_ctrl : 0x4B;                   //'E'
         
-        /*
-        reg = REG_READ(SCTRL_BLOCK_EN_MUX);
-        reg &= (~0x1FF);
-        reg |= (0x1 << 8);
-        REG_WRITE(SCTRL_BLOCK_EN_MUX, reg);              //sys_ctrl : 0x4F;
-        */
         reg = REG_READ(SCTRL_ROSC_CAL);                           //ROSC Calibration disable
         reg =(reg  & (~0x01));
         REG_WRITE(SCTRL_ROSC_CAL, reg);   
-
-        REG_WRITE(SCTRL_CONTROL, 0x330100);
-        //REG_WRITE(SCTRL_ROSC_TIMER, 0x70000001);               //timer ������ʱ����д��
+		
+		REG_WRITE(SCTRL_CONTROL, 0x330100);
         REG_WRITE(SCTRL_BLOCK_EN_CFG, (0x15D|(0xA5C<<20)));
         REG_WRITE(SCTRL_ROSC_CAL, 0x30);
         REG_WRITE(SCTRL_LOW_PWR_CLK, 0x01);
-        REG_WRITE(SCTRL_MODEM_CORE_RESET_PHY_HCLK, 0x03);                 
-        REG_WRITE(SCTRL_CLK_GATING, 0x1ff);             
-        
-        REG_WRITE(SCTRL_ANALOG_CTRL0, 0x7819a59b);     
-        REG_WRITE(SCTRL_ANALOG_CTRL1, 0x7819a59b);     
-        REG_WRITE(SCTRL_ANALOG_CTRL2, 0x84036080);     
-        REG_WRITE(SCTRL_ANALOG_CTRL3, 0x180004a0);     
-        REG_WRITE(SCTRL_ANALOG_CTRL4, 0x84200e52);     
-        REG_WRITE(SCTRL_ANALOG_CTRL5, 0x3b13b13b);     
-        REG_WRITE(SCTRL_ANALOG_CTRL6, 0xb09350);     
-        REG_WRITE(SCTRL_ANALOG_CTRL7, 0x441a7f0);     
-        REG_WRITE(SCTRL_ANALOG_CTRL8, 0x3b187c);     
-        REG_WRITE(SCTRL_ANALOG_CTRL9, 0x82204007);     
-        REG_WRITE(SCTRL_ANALOG_CTRL10, 0x80801432);     
-       
-    }    
-    else if(deep_param.deep_wkway == PS_DEEP_WAKEUP_GPIO)
+        REG_WRITE(SCTRL_MODEM_CORE_RESET_PHY_HCLK, 0x03);
+        REG_WRITE(SCTRL_CLK_GATING, 0x1ff);
+    }
+
+	if ((deep_param->wake_up_way == PS_DEEP_WAKEUP_GPIO) || (deep_param->wake_up_way & PS_DEEP_WAKEUP_GPIO_RTC))
     {
+		for(i=0; i<GPIONUM; i++)
+		{
+			param = GPIO_CFG_PARAM(i, GMODE_SET_HIGH_IMPENDANCE);	/*set gpio 0~39 as high impendance*/
+            sddev_control(GPIO_DEV_NAME, CMD_GPIO_CFG, &param); 
+		}
+		for (i = 0; i < GPIONUM; i++)
+    	{		
+        	if (deep_param->gpio_index_map & (0x01UL << i))			/*set gpio 0~31 mode*/
+        	{
+            	if(deep_param->gpio_index_map & deep_param->gpio_edge_map & (0x01UL << i))
+            	{
+            		param = GPIO_CFG_PARAM(i, GMODE_INPUT_PULLUP);
+            		sddev_control(GPIO_DEV_NAME, CMD_GPIO_CFG, &param); 					
+            	}
+            	else
+            	{
+                	param = GPIO_CFG_PARAM(i, GMODE_INPUT_PULLDOWN);
+                	sddev_control(GPIO_DEV_NAME, CMD_GPIO_CFG, &param);  	
+            	}
+        	}
+			
+			if (deep_param->gpio_last_index_map & (0x01UL << i))				/*set gpio 32~39 mode*/
+        	{	
+            	if(deep_param->gpio_last_index_map & deep_param->gpio_last_edge_map  & (0x01UL << i))
+            	{
+            		param = GPIO_CFG_PARAM(i+32, GMODE_INPUT_PULLUP);
+            		sddev_control(GPIO_DEV_NAME, CMD_GPIO_CFG, &param); 
+            	}
+            	else
+            	{
+                	param = GPIO_CFG_PARAM(i+32, GMODE_INPUT_PULLDOWN);
+                	sddev_control(GPIO_DEV_NAME, CMD_GPIO_CFG, &param);  
+	
+            	}
+        	}			
+    	}
+		/* set gpio 0~31 mode*/
         reg = 0xFFFFFFFF;
         REG_WRITE(SCTRL_GPIO_WAKEUP_INT_STATUS,reg);        
-        reg = deep_param.gpio_lv;
+        reg = deep_param->gpio_edge_map;
         REG_WRITE(SCTRL_GPIO_WAKEUP_TYPE,reg);
-        reg = deep_param.param;
+        reg = deep_param->gpio_index_map;
         REG_WRITE(SCTRL_GPIO_WAKEUP_EN,reg); 
+		
+		/* set gpio 31~32 mode*/
+        reg = 0xFF;
+        REG_WRITE(SCTRL_GPIO_WAKEUP_INT_STATUS1,reg);        
+        reg = deep_param->gpio_last_edge_map;
+        REG_WRITE(SCTRL_GPIO_WAKEUP_TYPE1,reg);
+        reg = deep_param->gpio_last_index_map;
+        REG_WRITE(SCTRL_GPIO_WAKEUP_EN1,reg); 	
+    }	
+   
+#ifdef BK_DEEP_SLEEP_DEBUG
+	BK_DEEP_SLEEP_PRT("SCTRL_CONTROL=0x%08X\r\n", REG_READ(SCTRL_CONTROL)); 
+	BK_DEEP_SLEEP_PRT("SCTRL_SLEEP=0x%08X\r\n", REG_READ(SCTRL_SLEEP)); 
+	BK_DEEP_SLEEP_PRT("SCTRL_ROSC_TIMER=0x%08X\r\n", REG_READ(SCTRL_ROSC_TIMER));
+	BK_DEEP_SLEEP_PRT("SCTRL_BLOCK_EN_CFG=0x%08X\r\n", REG_READ(SCTRL_BLOCK_EN_CFG));
+	BK_DEEP_SLEEP_PRT("SCTRL_ROSC_CAL=0x%08X\r\n", REG_READ(SCTRL_ROSC_CAL));
+	BK_DEEP_SLEEP_PRT("SCTRL_BLOCK_EN_MUX=0x%08X\r\n", REG_READ(SCTRL_BLOCK_EN_MUX));
+	BK_DEEP_SLEEP_PRT("SCTRL_LOW_PWR_CLK=0x%08X\r\n", REG_READ(SCTRL_LOW_PWR_CLK));
+	BK_DEEP_SLEEP_PRT("SCTRL_PWR_MAC_MODEM=0x%08X\r\n", REG_READ(SCTRL_PWR_MAC_MODEM));
+	BK_DEEP_SLEEP_PRT("SCTRL_MODEM_CORE_RESET_PHY_HCLK=0x%08X\r\n", REG_READ(SCTRL_MODEM_CORE_RESET_PHY_HCLK));
+	BK_DEEP_SLEEP_PRT("SCTRL_CLK_GATING=0x%08X\r\n", REG_READ(SCTRL_CLK_GATING));
+	BK_DEEP_SLEEP_PRT("SCTRL_GPIO_WAKEUP_INT_STATUS=0x%08X\r\n", REG_READ(SCTRL_GPIO_WAKEUP_INT_STATUS));
+	BK_DEEP_SLEEP_PRT("SCTRL_GPIO_WAKEUP_TYPE=0x%08X\r\n", REG_READ(SCTRL_GPIO_WAKEUP_TYPE));
+	BK_DEEP_SLEEP_PRT("SCTRL_GPIO_WAKEUP_EN=0x%08X\r\n", REG_READ(SCTRL_GPIO_WAKEUP_EN));
+	BK_DEEP_SLEEP_PRT("SCTRL_GPIO_WAKEUP_INT_STATUS1=0x%08X\r\n", REG_READ(SCTRL_GPIO_WAKEUP_INT_STATUS1));
+	BK_DEEP_SLEEP_PRT("SCTRL_GPIO_WAKEUP_TYPE1=0x%08X\r\n", REG_READ(SCTRL_GPIO_WAKEUP_TYPE1));
+	BK_DEEP_SLEEP_PRT("SCTRL_GPIO_WAKEUP_EN1=0x%08X\r\n", REG_READ(SCTRL_GPIO_WAKEUP_EN1));	
+#endif      
 
-        reg = REG_READ(SCTRL_SLEEP);
-        reg |= (ROSC_PWD_DEEPSLEEP_BIT);
-        REG_WRITE(SCTRL_SLEEP, reg); 
-                
-        REG_WRITE(SCTRL_ANALOG_CTRL0, 0x7819a59b);     
-        REG_WRITE(SCTRL_ANALOG_CTRL1, 0x7819a59b);     
-        REG_WRITE(SCTRL_ANALOG_CTRL2, 0x84036080);     
-        REG_WRITE(SCTRL_ANALOG_CTRL3, 0x180004a0);     
-        REG_WRITE(SCTRL_ANALOG_CTRL4, 0x84200e52);     
-        REG_WRITE(SCTRL_ANALOG_CTRL5, 0x3b13b13b);     
-        REG_WRITE(SCTRL_ANALOG_CTRL6, 0xb09350);     
-        REG_WRITE(SCTRL_ANALOG_CTRL7, 0x441a7f0);     
-        REG_WRITE(SCTRL_ANALOG_CTRL8, 0x3b187c);     
-        REG_WRITE(SCTRL_ANALOG_CTRL9, 0x82204007);     
-        REG_WRITE(SCTRL_ANALOG_CTRL10, 0x80801432);  
-      
-    }
-	
-    ps_delay(10);
-
-	rt_kprintf("SCTRL_CONTROL=0x%08X\r\n", REG_READ(SCTRL_CONTROL)); 
-	rt_kprintf("SCTRL_SLEEP=0x%08X\r\n", REG_READ(SCTRL_SLEEP)); 
-	rt_kprintf("SCTRL_ROSC_TIMER=0x%08X\r\n", REG_READ(SCTRL_ROSC_TIMER));
-	rt_kprintf("SCTRL_BLOCK_EN_CFG=0x%08X\r\n", REG_READ(SCTRL_BLOCK_EN_CFG));
-	rt_kprintf("SCTRL_ROSC_CAL=0x%08X\r\n", REG_READ(SCTRL_ROSC_CAL));
-	rt_kprintf("SCTRL_BLOCK_EN_MUX=0x%08X\r\n", REG_READ(SCTRL_BLOCK_EN_MUX));
-	rt_kprintf("SCTRL_LOW_PWR_CLK=0x%08X\r\n", REG_READ(SCTRL_LOW_PWR_CLK));
-	rt_kprintf("SCTRL_PWR_MAC_MODEM=0x%08X\r\n", REG_READ(SCTRL_PWR_MAC_MODEM));
-	rt_kprintf("SCTRL_MODEM_CORE_RESET_PHY_HCLK=0x%08X\r\n", REG_READ(SCTRL_MODEM_CORE_RESET_PHY_HCLK));
-	rt_kprintf("SCTRL_CLK_GATING=0x%08X\r\n", REG_READ(SCTRL_CLK_GATING));
- 	rt_kprintf("SCTRL_ANALOG_CTRL0=0x%08X\r\n", REG_READ(SCTRL_ANALOG_CTRL0));
-	rt_kprintf("SCTRL_ANALOG_CTRL1=0x%08X\r\n", REG_READ(SCTRL_ANALOG_CTRL1));
-	rt_kprintf("SCTRL_ANALOG_CTRL2=0x%08X\r\n", REG_READ(SCTRL_ANALOG_CTRL2));
-	rt_kprintf("SCTRL_ANALOG_CTRL3=0x%08X\r\n", REG_READ(SCTRL_ANALOG_CTRL3));
-	rt_kprintf("SCTRL_ANALOG_CTRL4=0x%08X\r\n", REG_READ(SCTRL_ANALOG_CTRL4));
-	rt_kprintf("SCTRL_ANALOG_CTRL5=0x%08X\r\n", REG_READ(SCTRL_ANALOG_CTRL5));
-	rt_kprintf("SCTRL_ANALOG_CTRL6=0x%08X\r\n", REG_READ(SCTRL_ANALOG_CTRL6));
-	rt_kprintf("SCTRL_ANALOG_CTRL7=0x%08X\r\n", REG_READ(SCTRL_ANALOG_CTRL7));
-	rt_kprintf("SCTRL_ANALOG_CTRL8=0x%08X\r\n", REG_READ(SCTRL_ANALOG_CTRL8));
-	rt_kprintf("SCTRL_ANALOG_CTRL9=0x%08X\r\n", REG_READ(SCTRL_ANALOG_CTRL9));
-	rt_kprintf("SCTRL_ANALOG_CTRL10=0x%08X\r\n", REG_READ(SCTRL_ANALOG_CTRL10));
-      
-	uart_wait_tx_over();
-	/* close all peri clock*/
-          
-	REG_WRITE(ICU_PERI_CLK_PWD, 0xfffff);  //  icu: 0x2;
-      
-	uart2_exit();
-	uart1_exit();
-
-	REG_WRITE(ICU_PERI_CLK_PWD, 0xfffff);  //  icu: 0x2;
-	REG_WRITE(ICU_INTERRUPT_ENABLE, 0);
-    /* arm clock disable */
+    /* enter deep_sleep mode */
     reg = REG_READ(SCTRL_SLEEP);
     reg &= ~(SLEEP_MODE_MASK << SLEEP_MODE_POSI);
     reg = reg | SLEEP_MODE_CFG_DEEP_WORD&(~ROSC_PWD_DEEPSLEEP_BIT);
@@ -1437,6 +1462,271 @@ static int sctrl_write_efuse(void *param)
 }
 #endif // (CFG_SOC_NAME != SOC_BK7231)
 
+#if CFG_USE_USB_CHARGE
+#if (CFG_SOC_NAME == SOC_BK7221U)
+UINT32 usb_is_pluged(void)
+{
+    UINT32 reg;
+    reg = sctrl_analog_get(SCTRL_CHARGE_STATUS);
+    return (reg & (1 << 21));
+}
+
+void charger_module_enable(UINT32 enable)
+{
+    if(! usb_is_pluged())
+    {
+        return;
+    }
+
+    sctrl_analog_set(SCTRL_ANALOG_CTRL4, (sctrl_analog_get(SCTRL_ANALOG_CTRL4) & ~(1 << 12)) | (!!enable << 12));
+}
+
+void charger_vlcf_calibration(UINT32 type)
+{
+    if(! usb_is_pluged())
+    {
+        return;
+    }
+    if(type == 0)
+    {
+        /*Internal hardware calibration*/
+        /*vlcf calibration*/
+        /*>>> Added 4.2V voltage on vbattery*/
+        /*>>> Set pwd=0*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4) | (1 << 12));
+        /*calEn*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4) | (1 << 21));
+        /*softCalen*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4)& ~(1 << 20));
+        /*vlcfSel*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(1 << 18));
+        /*IcalSel*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(1 << 17));
+        /*vcvSel*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(1 << 16));
+        /*vlcf_caltrig*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(1 << 21));
+        /*vlcf_caltrig*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 21));
+        /*Wait for at least 4 clock cycles*/
+        delay_ms(1);
+        /*vlcf_caltrig*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(1 << 21));
+        /*Waiting for 1ms, calibration finished*/
+        delay_ms(1);
+        /*Read the value vcal<5:0>, Recorded*/
+        calib_charger[0] = (sctrl_analog_get(SCTRL_CHARGE_STATUS) >> CHARGE_VCAL_POS) & CHARGE_VCAL_MASK ;
+
+        os_printf("calib_charger[0] = 0x%02x\r\n", calib_charger[0]);
+    }
+    else
+    {
+        /*External software calibration*/
+        /*TODO*/
+    }
+}
+
+void charger_icp_calibration(UINT32 type)
+{
+    if(! usb_is_pluged())
+    {
+        return;
+    }
+    if(type == 0)
+    {
+        /*Internal hardware calibration*/
+        /*Icp calibration*/
+        /*>>> Added parallel 60ohm resistor and 100nF capacitor from vbattery to ground.(Removed the external 4.2V)*/
+        /*>>> Set pwd=0*/
+        /*>>> Porb=0*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4) | (1 << 12));
+        /*Icp=60mA*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, (sctrl_analog_get(SCTRL_ANALOG_CTRL3)\
+                                              & ~(CHARGE_LCP_MASK << CHARGE_LCP_POS)) | (0x4 << CHARGE_LCP_POS));
+        /*calEn*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4) | (1 << 21));
+        /*softCalen*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4)& ~(1 << 20));
+        /*vlcfSel*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 18));
+        /*vcal<5:0>=previous vlcf calibration value*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, (sctrl_analog_get(SCTRL_ANALOG_CTRL3)\
+                                              & ~(CHARGE_VCAL_MASK << 0)) | (calib_charger[0] << 0));
+        /*IcalSel*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(1 << 17));
+        /*vcvSel*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(1 << 16));
+        /*Ical_trig*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(1 << 20));
+        /*Ical_trig*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 20));
+        /*Wait for at least 4 clock cycles*/
+        delay_ms(1);
+        /*Ical_trig*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(1 << 20));
+        /*Waiting for 1ms, calibration finished*/
+        delay_ms(1);
+        /*Read the value Ical<4:0>, Recorded*/
+        calib_charger[1] = (sctrl_analog_get(SCTRL_CHARGE_STATUS) >> CHARGE_LCAL_POS) & CHARGE_LCAL_MASK ;
+
+        os_printf("calib_charger[1] = 0x%02x\r\n", calib_charger[1]);
+    }
+    else
+    {
+        /*External software calibration*/
+        /*TODO*/
+    }
+}
+
+void charger_vcv_calibration(UINT32 type)
+{
+    if(! usb_is_pluged())
+    {
+        return;
+    }
+    if(type == 0)
+    {
+        /*Internal hardware calibration*/
+        /*vcv calibration*/
+        /*>>> Added 4.2V voltage on vbattery*/
+        /*>>> Set pwd=0*/
+        /*>>> Porb=0*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4) | (1 << 12));
+        /*Icp=60mA*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, (sctrl_analog_get(SCTRL_ANALOG_CTRL3)\
+                                              & ~(CHARGE_LCP_MASK << CHARGE_LCP_POS)) | (0x4 << CHARGE_LCP_POS));
+        /*calEn*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4) | (1 << 21));
+        /*softCalen*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4)& ~(1 << 20));
+        /*vlcfSel*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 18));
+        /*vcal<5:0>=previous vlcf calibration value*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, (sctrl_analog_get(SCTRL_ANALOG_CTRL3)\
+                                              & ~(CHARGE_VCAL_MASK << 0)) | (calib_charger[0] << 0));
+        /*IcalSel*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 17));
+        /*Ical<4:0>=previous Ical calibration value*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, (sctrl_analog_get(SCTRL_ANALOG_CTRL4)\
+                                              & ~(CHARGE_LCAL_MASK << 27)) | (calib_charger[1] << 27));
+        /*vcvSel*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(1 << 16));
+        /*vcv_caltrig*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(1 << 19));
+        /*vcv_caltrig*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 19));
+        /*Wait for at least 4 clock cycles*/
+        delay_ms(1);
+        /*vcv_caltrig*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(1 << 19));
+        /*Waiting for 1ms, calibration finished*/
+        delay_ms(1);
+        /*Read the value vcvcal<4:0>, Recorded*/
+        calib_charger[2] = (sctrl_analog_get(SCTRL_CHARGE_STATUS) >> CHARGE_VCVCAL_POS) & CHARGE_VCVCAL_MASK ;
+
+        os_printf("calib_charger[2] = 0x%02x\r\n", calib_charger[2]);
+    }
+    else
+    {
+        /*External software calibration*/
+        /*TODO*/
+    }
+}
+
+void charger_calib_get(UINT8 value[])
+{
+    value[0] = calib_charger[0];
+    value[1] = calib_charger[1];
+    value[2] = calib_charger[2];
+    return;
+}
+
+void charger_calib_set(UINT8 value[])
+{
+    if(!value[0] || !value[1] || !value[2])
+    {
+        return;
+    }
+
+    calib_charger[0] = value[0];
+    calib_charger[1] = value[1];
+    calib_charger[2] = value[2];
+    return;
+}
+
+UINT32 charger_is_full(void)
+{
+    UINT32 reg;
+    reg = sctrl_analog_get(SCTRL_CHARGE_STATUS);
+    return (reg & (1 << 20));
+}
+
+void charger_start(void * param)
+{
+    UINT32 charge_cal_type ;
+    CHARGE_OPER_ST *chrg;
+
+    chrg = (CHARGE_OPER_ST *)param;
+
+    if(! usb_is_pluged())
+    {
+        return;
+    }
+
+    charger_calib_set(chrg->cal);
+    os_printf("%s(%d) %x %x %x %x\r\n", __FUNCTION__, chrg->type,chrg->oper, calib_charger[0], calib_charger[1], calib_charger[2]);
+
+    if(chrg->type == 0)
+    {
+        /*Internal*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4)& ~(1 << 21));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 27));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4) | (1 << 12));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4)& ~(1 << 11));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 18));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 17));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 16));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, (sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(CHARGE_LCP_MASK << CHARGE_LCP_POS)) | (chrg->oper << CHARGE_LCP_POS));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, (sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(CHARGE_VCAL_MASK << 0)) | (calib_charger[0] << 0));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, (sctrl_analog_get(SCTRL_ANALOG_CTRL4)& ~(CHARGE_LCAL_MASK << 27)) | (calib_charger[1] << 27));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, (sctrl_analog_get(SCTRL_ANALOG_CTRL4)& ~(CHARGE_LCAL_MASK << 22)) | (calib_charger[2] << 22));
+
+    }
+    else
+    {
+        /*External*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 27));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4) | (1 << 12));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, sctrl_analog_get(SCTRL_ANALOG_CTRL4) | (1 << 11));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 18));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 17));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, sctrl_analog_get(SCTRL_ANALOG_CTRL3) | (1 << 16));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, (sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(CHARGE_LCP_MASK << CHARGE_LCP_POS)) | (chrg->oper << CHARGE_LCP_POS));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL3, (sctrl_analog_get(SCTRL_ANALOG_CTRL3)& ~(CHARGE_VCAL_MASK << 0)) | (calib_charger[0] << 0));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, (sctrl_analog_get(SCTRL_ANALOG_CTRL4)& ~(CHARGE_LCAL_MASK << 27)) | (calib_charger[1] << 27));
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, (sctrl_analog_get(SCTRL_ANALOG_CTRL4)& ~(CHARGE_LCAL_MASK << 22)) | (calib_charger[2] << 22));
+    }
+}
+
+void charger_stop(UINT32 type)
+{
+    os_printf("%s(%d)\r\n", __FUNCTION__, type);
+
+    charger_module_enable(0);
+    if(type == 0)
+    {
+        /*Internal*/
+    }
+    else
+    {
+        /*External*/
+        sctrl_analog_set(SCTRL_ANALOG_CTRL4, (sctrl_analog_get(SCTRL_ANALOG_CTRL4) & ~(1 << 11)));
+    }
+}
+#endif
+#endif
+
+
 UINT32 sctrl_ctrl(UINT32 cmd, void *param)
 {
     UINT32 ret;
@@ -1463,7 +1753,7 @@ UINT32 sctrl_ctrl(UINT32 cmd, void *param)
 
 
     case CMD_SCTRL_RTOS_DEEP_SLEEP:
-        sctrl_enter_rtos_deep_sleep(*(PS_DEEP_CTRL_PARAM *)param);
+        sctrl_enter_rtos_deep_sleep((PS_DEEP_CTRL_PARAM *)param);
         break;
 #endif
 
@@ -1807,8 +2097,69 @@ UINT32 sctrl_ctrl(UINT32 cmd, void *param)
 	case CMD_SCTRL_SET_ANALOG10:
 		sctrl_analog_set(SCTRL_ANALOG_CTRL10, 0x80801432);
 		break;
-      
+	case CMD_SCTRL_AUDIO_PLL:	
+		if((*(UINT32 *)param) == 48000000)						//48MHz
+		{
+			sctrl_analog_set(SCTRL_ANALOG_CTRL5,0x3B13B13B);
+		}
+		else if((*(UINT32 *)param) == 48128000)					//48.128MHz
+		{
+			sctrl_analog_set(SCTRL_ANALOG_CTRL5,0x3B3C05AC);
+		}
+		else if((*(UINT32 *)param) == 48384000)					//48.384MHz
+		{
+			sctrl_analog_set(SCTRL_ANALOG_CTRL5,0x3B8CAE8E);
+		}
+		else if((*(UINT32 *)param) == 49152000)					//49.152MHz
+		{
+			sctrl_analog_set(SCTRL_ANALOG_CTRL5,0x3C7EA932);
+		}
+		else if((*(UINT32 *)param) == 49392000)					//49.392MHz
+		{
+			sctrl_analog_set(SCTRL_ANALOG_CTRL5,0x3CCA4785);
+		}
+		else if((*(UINT32 *)param) == 50688000)					//50.688MHz
+		{
+			sctrl_analog_set(SCTRL_ANALOG_CTRL5,0x3E629E7C);
+		}
+		else if((*(UINT32 *)param) == 50803200)					//50.8032MHz
+		{
+			sctrl_analog_set(SCTRL_ANALOG_CTRL5,0x3E86EA7A);
+		}
+		else
+		{
+			sctrl_analog_set(SCTRL_ANALOG_CTRL5,0x3B13B13B);
+		}		
+		break;
+
+#if CFG_USE_USB_CHARGE
+    case CMD_SCTRL_USB_CHARGE_CAL:
+        if(1 == ((CHARGE_OPER_PTR)param)->oper)
+            charger_vlcf_calibration(0);
+        else if(2 == ((CHARGE_OPER_PTR)param)->oper)
+            charger_icp_calibration(0);
+        else if(3 == ((CHARGE_OPER_PTR)param)->oper)
+            charger_vcv_calibration(0);
+        else if(4 == ((CHARGE_OPER_PTR)param)->oper)
+            charger_calib_get(((CHARGE_OPER_PTR)param)->cal);
+        break;
+    case CMD_SCTRL_USB_CHARGE_START:
+        charger_start(param);
+        break;
+    case CMD_SCTRL_USB_CHARGE_STOP:
+        charger_stop((*(UINT32 *)param));
+        break;
+#endif
+
 #endif // (CFG_SOC_NAME == SOC_BK7221U)
+
+    case CMD_SCTRL_SET_VDD_VALUE:
+    	reg = REG_READ(SCTRL_DIGTAL_VDD);
+    	reg &= (~(DIG_VDD_ACTIVE_MASK << DIG_VDD_ACTIVE_POSI));
+        reg |=((*(UINT32 *)param) << DIG_VDD_ACTIVE_POSI);
+    	REG_WRITE(SCTRL_DIGTAL_VDD, reg);
+        break;
+
     default:
         ret = SCTRL_FAILURE;
         break;

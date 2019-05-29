@@ -1,7 +1,7 @@
 #ifndef _APP_MUSIC_H_
 #define _APP_MUSIC_H_
 #include "sys_rtos.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #define APP_MUSIC_DEBUG
 

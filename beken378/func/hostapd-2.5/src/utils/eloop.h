@@ -18,7 +18,7 @@
 #define ELOOP_H
 
 #include "include.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #include "list.h"
 

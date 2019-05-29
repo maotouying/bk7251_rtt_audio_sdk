@@ -385,8 +385,17 @@ void bkreg_tx(HCI_EVENT_PACKET *pHCItxBuf)
 {
 #ifndef KEIL_SIMULATOR
     char *tmp;
-    unsigned int i;
+    unsigned int i, port = 0;
     unsigned int tx_len = HCI_EVENT_HEAD_LENGTH + pHCItxBuf->total;
+
+    #if (CFG_SUPPORT_RTT)
+    #include "rtconfig.h"
+    if (os_strcmp(RT_CONSOLE_DEVICE_NAME, "uart2") == 0)
+        port = 1;
+
+    #elif (CFG_SUPPORT_ALIOS)
+    
+    #endif
 
     pHCItxBuf->code  = TRA_HCIT_EVENT;
     pHCItxBuf->event = HCI_COMMAND_COMPLETE_EVENT;
@@ -394,7 +403,7 @@ void bkreg_tx(HCI_EVENT_PACKET *pHCItxBuf)
     tmp = (char *)pHCItxBuf;
     for(i = 0; i < tx_len; i ++)
     {
-        bk_send_byte(1,tmp[i]);//BK_UART_2
+        bk_send_byte(port,tmp[i]);//BK_UART_2
     }
 #endif
 }
@@ -463,10 +472,10 @@ int bkreg_run_command(const char *content, int cnt)
         if(rx_param->addr == 0x00800014) {
             #if ATE_APP_FUN
             if(get_ate_mode_state())
-                tx_param->value = 0x1B180905;   // testmode flag[31:28] | bk7231U:B [27:24] | date
+                tx_param->value = 0x1B190104;   // testmode flag[31:28] | bk7231U:B [27:24] | date
             else
             #endif
-                tx_param->value = 0x0B180905;
+                tx_param->value = 0x0B190104;
         }
         else
             tx_param->value = REG_READ(rx_param->addr);

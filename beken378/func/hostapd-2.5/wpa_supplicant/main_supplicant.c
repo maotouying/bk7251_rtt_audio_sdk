@@ -19,7 +19,7 @@
 #if (!CFG_SUPPORT_ALIOS)
 #include "sys_rtos.h"
 #endif
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "error.h"
 #include "uart_pub.h"
 #include "signal.h"
@@ -203,9 +203,9 @@ static void wpas_thread_main( void *arg )
     eloop_run();
 
 	wpas_thread_handle = NULL;
-    rtos_deinit_queue(&wpah_queue);
+    bk_rtos_deinit_queue(&wpah_queue);
     wpah_queue = NULL;
-	rtos_delete_thread(NULL);
+	bk_rtos_delete_thread(NULL);
 }
 
 void wpas_thread_start(void)
@@ -213,7 +213,7 @@ void wpas_thread_start(void)
     OSStatus ret;
 
     if(wpah_queue == NULL) {
-    	ret = rtos_init_queue(&wpah_queue, 
+    	ret = bk_rtos_init_queue(&wpah_queue, 
     							"wpah_queue",
     							sizeof(WPAH_MSG_ST),
     							10);
@@ -222,7 +222,7 @@ void wpas_thread_start(void)
 
     if(NULL == wpas_thread_handle)
     {
-	    ret = rtos_create_thread(&wpas_thread_handle,
+	    ret = bk_rtos_create_thread(&wpas_thread_handle,
 	                             THD_WPAS_PRIORITY,
 	                             "wpas_thread",
 	                             (beken_thread_function_t)wpas_thread_main,
@@ -237,7 +237,7 @@ void wpas_thread_stop(void)
     wpa_handler_signal((void*)SIGTERM, 0xff);
 
 	while(wpas_thread_handle != NULL) {
-		rtos_delay_milliseconds(10);
+		bk_rtos_delay_milliseconds(10);
 	}
 }
 
@@ -247,7 +247,7 @@ void wpa_supplicant_poll(void *param)
 
 	if(wpas_sema)
 	{
-    	ret = rtos_set_semaphore(&wpas_sema);
+    	ret = bk_rtos_set_semaphore(&wpas_sema);
 	}
 
 	(void)ret;
@@ -260,7 +260,7 @@ int wpa_sem_wait(uint32_t ms)
 		return kTimeoutErr;
 	}
 	
-	return rtos_get_semaphore(&wpas_sema, ms);
+	return bk_rtos_get_semaphore(&wpas_sema, ms);
 }
 
 u8* wpas_get_sta_psk(void)

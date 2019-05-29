@@ -6,7 +6,7 @@
 #include "uart_pub.h"
 
 #if CFG_SUPPORT_ALIOS
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "ll.h"
 #include "k_api.h"
 #else

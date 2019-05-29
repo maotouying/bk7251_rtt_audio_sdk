@@ -492,7 +492,7 @@ void spi_isr(void)
     UINT32 status, slv_status;
     volatile UINT8 fifo_empty_num, data_num, rxfifo_empty;
 
-    REG_WRITE((0x00802800+(19*4)), 0x02);
+    //REG_WRITE((0x00802800+(19*4)), 0x02);
     
 	data_num = 0; /*fix warning by clang analyzer*/
 	fifo_empty_num = 0; /*fix warning by clang analyzer*/
@@ -504,7 +504,8 @@ void spi_isr(void)
     REG_WRITE(SPI_SLAVE_CTRL, slv_status);
 
     //os_printf("0x%08x, 0x%08x\r\n", status, slv_status);
-    REG_WRITE((0x00802800+(19*4)), 0x00);
+    //REG_WRITE((0x00802800+(19*4)), 0x00);
+    
     if((status & RXINT) || (slv_status & SPI_S_CS_UP_INT_STATUS)) 
     {
         if (spi_receive_callback.callback != 0)

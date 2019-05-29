@@ -29,7 +29,7 @@
  */
 
 #include "include.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "error.h"
 #include "lwip/sockets.h"
 #include "mem_pub.h"
@@ -104,13 +104,13 @@ exit:
 		os_free( buf );
 	
     close( fd );
-    rtos_delete_thread( NULL );
+    bk_rtos_delete_thread( NULL );
 }
 
 volatile u8 test_flag = 0;
 void close_tcp_client(void)
 {
-    os_printf("close_tcp_client:%d, %p\r\n", my_fd, rtos_get_current_thread());
+    os_printf("close_tcp_client:%d, %p\r\n", my_fd, bk_rtos_get_current_thread());
     test_flag = 1;
     close( my_fd );
     my_fd = -1;
@@ -151,7 +151,7 @@ void tcp_server_thread( beken_thread_arg_t arg )
                 os_strcpy( client_ip_str, inet_ntoa( client_addr.sin_addr ) );
                 tcp_server_log( "TCP Client %s:%d connected, fd: %d", client_ip_str, client_addr.sin_port, client_fd );
                 if ( kNoErr
-                     != rtos_create_thread( NULL, BEKEN_APPLICATION_PRIORITY, 
+                     != bk_rtos_create_thread( NULL, BEKEN_APPLICATION_PRIORITY, 
 							                     "TCP Clients",
                                                  (beken_thread_function_t)tcp_client_thread,
                                                  0x800, 
@@ -168,14 +168,14 @@ void tcp_server_thread( beken_thread_arg_t arg )
 		tcp_server_log( "Server listerner thread exit with err: %d", err );
 	
     close( tcp_listen_fd );
-    rtos_delete_thread( NULL );
+    bk_rtos_delete_thread( NULL );
 }
 
 void make_tcp_server_command(char *pcWriteBuffer, int xWriteBufferLen, int argc, char **argv)
 {
     OSStatus err = kNoErr;
 
-    err = rtos_create_thread( NULL, BEKEN_APPLICATION_PRIORITY, 
+    err = bk_rtos_create_thread( NULL, BEKEN_APPLICATION_PRIORITY, 
 									"TCP_server", 
 									(beken_thread_function_t)tcp_server_thread,
 									0x800,

@@ -104,6 +104,9 @@
 #endif
                  
 #define REG_GPIO_DETECT                      (GPIO_BASE_ADDR + 39*4)
+#define IS_OVER_TEMP_DECT_BIT                 (1 << 0)
+#define IS_USB_PLUG_IN_BIT                    (1 << 1)
+
 #define REG_GPIO_ENC_WORD                    (GPIO_BASE_ADDR + 40*4)
 #define REG_GPIO_DBG_MSG                     (GPIO_BASE_ADDR + 41*4)
 #define REG_GPIO_DBG_MUX                     (GPIO_BASE_ADDR + 42*4)
@@ -182,6 +185,12 @@
 #define REG_GPIO_INTEN2                      (GPIO_BASE_ADDR + 56*4)
 #define REG_GPIO_INTLV3                      (GPIO_BASE_ADDR + 57*4)
 #define REG_GPIO_INTSTA2                     (GPIO_BASE_ADDR + 58*4)
+
+#if(!((CFG_SOC_NAME == SOC_BK7231U) || (CFG_SOC_NAME == SOC_BK7221U)))
+#define REG_GPIO_X_CONGFIG_ADDR(x)			(GPIO_BASE_ADDR + (x)*4)
+#else
+#define REG_GPIO_X_CONGFIG_ADDR(x)			(GPIO_BASE_ADDR +  (((x)<32) ? (x) : ((x)+0x10)) * 4)
+#endif
 
 #endif // #if (CFG_SOC_NAME == SOC_BK7231)
 

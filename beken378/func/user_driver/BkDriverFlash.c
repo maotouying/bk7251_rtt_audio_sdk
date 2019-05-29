@@ -26,7 +26,7 @@
  ******************************************************************************
  */
 #include "include.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "BkDriverFlash.h"
 #include "flash_pub.h"
 #include "drv_model_pub.h"
@@ -67,7 +67,7 @@ const bk_logic_partition_t bk7231_partitions[BK_PARTITION_MAX] =
         .partition_start_addr      = 0x1FF000,// for net related info
         .partition_length          = 0x1000,
         .partition_options         = PAR_OPT_READ_EN | PAR_OPT_WRITE_DIS,
-    }
+    },
 };
 
 static void BkFlashPartitionAssert( bk_partition_t inPartition )

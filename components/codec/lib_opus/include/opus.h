@@ -971,6 +971,12 @@ OPUS_EXPORT OPUS_WARN_UNUSED_RESULT opus_int32 opus_multistream_packet_unpad(uns
 
 /**@}*/
 
+#define opus_encoder_set_complexity(opus_enc, complexity)  		opus_encoder_ctl(opus_enc, OPUS_SET_COMPLEXITY(complexity))
+
+#define opus_encoder_get_bitrate(opus_enc, bitrate_bps)  		opus_encoder_ctl(opus_enc, OPUS_GET_BITRATE(&bitrate_bps))
+
+#define opus_encoder_get_final_range(opus_enc, enc_final_range)  		opus_encoder_ctl(opus_enc, OPUS_GET_FINAL_RANGE(&enc_final_range))
+
 #ifdef __cplusplus
 }
 #endif

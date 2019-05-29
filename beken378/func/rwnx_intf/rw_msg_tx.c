@@ -19,6 +19,7 @@
 #include "scanu_task.h"
 #include "wlan_ui_pub.h"
 #include "param_config.h"
+#include "bk_rtos_pub.h"
 #if CFG_ROLE_LAUNCH
 #include "role_launch.h"
 #endif
@@ -46,9 +47,9 @@ int rw_msg_send(const void *msg_params, uint16_t reqid, void *cfm)
         tx_msg->cfm = cfm;
 
 #if CFG_SUPPORT_ALIOS
-        ret = rtos_init_semaphore(&tx_msg->semaphore, 0);
+        ret = bk_rtos_init_semaphore(&tx_msg->semaphore, 0);
 #else
-        ret = rtos_init_semaphore(&tx_msg->semaphore, 1);
+        ret = bk_rtos_init_semaphore(&tx_msg->semaphore, 1);
 #endif
         ASSERT(0 == ret);
 
@@ -64,10 +65,10 @@ int rw_msg_send(const void *msg_params, uint16_t reqid, void *cfm)
 
     if(need_cfm)
     {
-        ret = rtos_get_semaphore(&tx_msg->semaphore, BEKEN_WAIT_FOREVER);
+        ret = bk_rtos_get_semaphore(&tx_msg->semaphore, BEKEN_WAIT_FOREVER);
         ASSERT(0 == ret);
 
-        ret = rtos_deinit_semaphore(&tx_msg->semaphore);
+        ret = bk_rtos_deinit_semaphore(&tx_msg->semaphore);
         ASSERT(0 == ret);
 
         os_free(tx_msg);

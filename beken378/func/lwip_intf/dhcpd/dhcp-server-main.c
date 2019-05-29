@@ -6,7 +6,7 @@
 /** dhcp-server-main.c: CLI based APIs for the DHCP Server
  */
 #include <string.h>
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "dhcp-priv.h"
 
 static beken_thread_t dhcpd_thread;
@@ -23,7 +23,7 @@ int dhcp_server_start(void *intrfc_handle)
 	if (dhcpd_running || dhcp_server_init(intrfc_handle))
 		return -1;
 
-	ret = rtos_create_thread(&dhcpd_thread, 
+	ret = bk_rtos_create_thread(&dhcpd_thread, 
                  BEKEN_APPLICATION_PRIORITY, 
                  "dhcp-server", 
 				(beken_thread_function_t)dhcp_server,
@@ -50,7 +50,7 @@ void dhcp_server_stop(void)
 			dhcp_w("failed to send halt to DHCP thread");
 			return;
 		}
-		if (rtos_delete_thread(&dhcpd_thread) != 0)
+		if (bk_rtos_delete_thread(&dhcpd_thread) != 0)
 			dhcp_w("failed to delete thread");
 		dhcpd_running = 0;
 	} else {

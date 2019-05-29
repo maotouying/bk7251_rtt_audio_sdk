@@ -4,7 +4,7 @@
 #include "drv_sdio_sd.h"
 #include "include.h"
 #include "sys_rtos.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "sdio_driver.h"
 
 #include "sdcard.h"
@@ -146,8 +146,10 @@ const static struct rt_device_ops sdcard_ops =
 
 int rt_hw_sdcard_init(void)
 {
-    sdcard_init();
-//	sdcard_initialize();
+    /*this 'sdcard_init' has called in dd.c */
+    //sdcard_init();
+    
+    //sdcard_initialize();
 
 	/* register sdcard device */
 	sdcard_device.type  = RT_Device_Class_Block;

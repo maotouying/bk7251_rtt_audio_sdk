@@ -3,6 +3,7 @@
 
 void spidma_intfer_init(void* data);
 void spidma_intfer_deinit(void);
+void spi_camera_flip(UINT8 n);
 
 #endif
 

@@ -2,7 +2,7 @@
 #define __SPI_DMA_PUB_H__
 
 #if CFG_USE_HSLAVE_SPI
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #define SPIDMA_FAILURE                (1)
 #define SPIDMA_SUCCESS                (0)

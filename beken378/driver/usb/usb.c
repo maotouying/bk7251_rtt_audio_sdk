@@ -9,6 +9,7 @@
 #include "icu_pub.h"
 #include "sys_ctrl_pub.h"
 #include "intc_pub.h"
+#include "bk_rtos_pub.h"
 
 #if CFG_USB
 #include "usb_msd.h"
@@ -65,7 +66,7 @@ void usb_event_post(void)
 {
     if(ubg_semaphore)
     {
-        rtos_set_semaphore(&ubg_semaphore);
+        bk_rtos_set_semaphore(&ubg_semaphore);
     }
     else
     {
@@ -80,7 +81,7 @@ void usb_thread_background(void *arg)
 
     while(1)
     {
-        result = rtos_get_semaphore(&ubg_semaphore, BEKEN_WAIT_FOREVER);
+        result = bk_rtos_get_semaphore(&ubg_semaphore, BEKEN_WAIT_FOREVER);
         if(kNoErr == result)
         {
             ret = MUSB_NoneRunBackground();
@@ -123,7 +124,7 @@ UINT32 usb_sw_open(void)
     if(NULL == ubg_thread_handle)
     {
         /* usb backgroud thread create*/
-        ret = rtos_create_thread(&ubg_thread_handle,
+        ret = bk_rtos_create_thread(&ubg_thread_handle,
                                  THD_UBG_PRIORITY,
                                  "ubg_thread",
                                  (beken_thread_function_t)usb_thread_background,
@@ -138,7 +139,7 @@ UINT32 usb_sw_open(void)
 
     if(NULL == ubg_semaphore)
     {
-        ret = rtos_init_semaphore(&ubg_semaphore, 10);
+        ret = bk_rtos_init_semaphore(&ubg_semaphore, 10);
         if (kNoErr != ret)
         {
             USB_PRT("create background sema failed\r\n");
@@ -451,6 +452,14 @@ UINT32 usb_plug_inout_open(UINT32 op_flag)
     param = 1;
     sddev_control(GPIO_DEV_NAME, CMD_GPIO_EN_USB_PLUG_OUT_INT, &param);
 
+    if(usb_is_plug_in())
+        param = USB_PLUG_IN_EVENT;
+    else
+        param = USB_PLUG_OUT_EVENT;
+
+    if(usb_plug.handler)
+        usb_plug.handler(usb_plug.usr_data, param);
+	
     return USB_PLUG_SUCCESS;
 }
 

@@ -193,7 +193,7 @@ void bk_timer_isr(void)
     }
     while(REG_READ(TIMER0_2_CTL) & status & (0x7 << TIMERCTLA_INT_POSI));
 
-    status = REG_READ(TIMER3_5_CTL) & (0x7 << TIMERCTLA_INT_POSI);
+    status = REG_READ(TIMER3_5_CTL) & (0x7 << TIMERCTLB_INT_POSI);
     for(i = 0; i < 3; i++)
     {
         if(status & (1 << (i + TIMERCTLB_INT_POSI)))

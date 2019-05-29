@@ -26,84 +26,55 @@
  ******************************************************************************
  */
 #include "include.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "BkDriverPwm.h"
 #include "drv_model_pub.h"
 #include "error.h"
 #include "pwm_pub.h"
 
-
-OSStatus bk_pwm_initialize(pwm_param_t *pwm, pwm_channel_t channel,PFUNC p_int_func,UINT8 src_clk)
+OSStatus bk_pwm_initialize(bk_pwm_t pwm, uint32_t frequency, float duty_cycle)
 {
-	UINT32 ret = kGeneralErr;
-	if(channel >= BK_PWM_MAX)
-	{
-		rt_kprintf("pwm channel invalid!\r\n");
-		return ret;
-	}
-	if(pwm == RT_NULL)
-	{
-		rt_kprintf("no pwm param!\r\n");
-		return ret;
-	}
-	
-	/*init pwm*/
-	pwm->channel = (UINT8)channel;
-	pwm->cfg.bits.en = PWM_INT_DIS;
-	pwm->cfg.bits.mode   = PMODE_PWM;
-	pwm->p_Int_Handler = p_int_func;
-	pwm->cfg.bits.int_en = PWM_INT_DIS;
-	
-	if(src_clk)
-		pwm->cfg.bits.clk	  = PWM_CLK_26M;
-	else
-		pwm->cfg.bits.clk	  = PWM_CLK_32K;
+    UINT32 ret;
+    pwm_param_t param;
 
-	ret = sddev_control(PWM_DEV_NAME, CMD_PWM_INIT_PARAM, pwm);
-	return ret;
+    /*init pwm*/
+    param.channel         = (uint8_t)pwm;
+    param.cfg.bits.en     = PWM_INT_EN;
+    param.cfg.bits.int_en = PWM_INT_DIS;
+    param.cfg.bits.mode   = PMODE_PWM;
+    param.cfg.bits.clk    = PWM_CLK_26M;
+    param.p_Int_Handler   = 0;
+    param.duty_cycle      = duty_cycle;
+    param.end_value       = frequency;  // 设置PWM频率
+
+    ret = sddev_control(PWM_DEV_NAME, CMD_PWM_INIT_PARAM, &param);
+    ASSERT(PWM_SUCCESS == ret);
+
+    return kNoErr;
 }
 
-OSStatus bk_pwm_set_duty_end(pwm_param_t *pwm,UINT32 duty_cycle,UINT32 end_value)
+OSStatus bk_pwm_start(bk_pwm_t pwm)
 {
-	UINT32 ret = kGeneralErr;
-	if(pwm == RT_NULL)
-	{
-		rt_kprintf("no pwm param!\r\n");
-		return ret;
-	}
-	if(duty_cycle > end_value)
-	{
-		rt_kprintf("param invalid!\r\n");
-		return ret;
-	}
-	pwm->duty_cycle = duty_cycle;
-	pwm->end_value = end_value;
-	ret = sddev_control(PWM_DEV_NAME, CMD_PWM_INIT_PARAM, pwm);
-	return ret;
+    UINT32 ret;
+    UINT32 param;
+
+    param = pwm;
+    ret = sddev_control(PWM_DEV_NAME, CMD_PWM_UNIT_ENABLE, &param);
+    ASSERT(PWM_SUCCESS == ret);
+
+    return kNoErr;
 }
 
-OSStatus bk_pwm_enable(pwm_param_t *pwm,UINT8 enable)
+OSStatus bk_pwm_stop(bk_pwm_t pwm)
 {
-	UINT32 ret = kGeneralErr;
-	if(pwm == RT_NULL)
-	{
-		rt_kprintf("no pwm param!\r\n");
-		return ret;
-	}
-	
-    if (enable)
-    {
-    	pwm->cfg.bits.en     = PWM_ENABLE;
-		if(pwm->p_Int_Handler != NULL)
-			pwm->cfg.bits.int_en = PWM_INT_EN;
-    }
-    else
-    {
-    	pwm->cfg.bits.int_en = PWM_INT_DIS;
-        pwm->cfg.bits.en     = PWM_DISABLE;
-    }
-	ret = sddev_control(PWM_DEV_NAME, CMD_PWM_INIT_PARAM, pwm);
-	return ret;
+    UINT32 ret;
+    UINT32 param;
+
+    param = pwm;
+    ret = sddev_control(PWM_DEV_NAME, CMD_PWM_UINT_DISABLE, &param);
+    ASSERT(PWM_SUCCESS == ret);
+
+    return kNoErr;
 }
 
 // eof

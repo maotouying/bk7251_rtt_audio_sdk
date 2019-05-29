@@ -4,6 +4,7 @@
 #define ATE_APP_FUN 1
 
 #if ATE_APP_FUN
+#include "sys_config.h"
 #include "gpio_pub.h"
 
 #include "uart_pub.h"
@@ -18,7 +19,8 @@
 #define ATE_FATAL    null_prf
 #endif
 
-#define ATE_GPIO_ID            GPIO0   /* uart1 tx pin*/
+#define ATE_GPIO_ID            GPIO0   
+#define ATE_ENABLE_GIPO_LEVEL  0
 
 void ate_gpio_init(void);
 uint32_t ate_mode_check(void);

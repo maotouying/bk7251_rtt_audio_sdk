@@ -6,7 +6,7 @@
 #include "mem_pub.h"
 #include "drv_model_pub.h"
 #include "sys_rtos.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "error.h"
 
 //#include "song.h"
@@ -173,7 +173,7 @@ static void audio_intf_adc_timer_poll(void)
 
     //AUD_INTF_PRT("%d\r\n", copy_len);
 
-    rtos_reload_timer(&audio_adc_get_timer);
+    bk_rtos_reload_timer(&audio_adc_get_timer);
 }
 
 static void audio_intf_adc_timer_handler(void *data)
@@ -205,7 +205,7 @@ static void audio_intf_adc_linein_timer_poll(void)
 {   
     ddev_control(aud_adc_hdl, AUD_ADC_CMD_DO_LINEIN_DETECT, NULL);
     
-    rtos_reload_timer(&audio_adc_linein_timer);
+    bk_rtos_reload_timer(&audio_adc_linein_timer);
     //AUD_INTF_PRT("restart timer\r\n");
 }
 
@@ -305,30 +305,30 @@ static void audio_intf_main( beken_thread_arg_t data )
     GLOBAL_INT_RESTORE();
 
     #if !AUD_ADC_DAC_HARDWARD_LOOPBACK
- 	err = rtos_init_timer(&audio_adc_get_timer, 
+ 	err = bk_rtos_init_timer(&audio_adc_get_timer, 
 							ADC_TIMER_INTVAL, 
 							audio_intf_adc_timer_handler, 
 							(void *)0);
     ASSERT(kNoErr == err);
     
-	err = rtos_start_timer(&audio_adc_get_timer);
+	err = bk_rtos_start_timer(&audio_adc_get_timer);
 	ASSERT(kNoErr == err);
     #endif
 
-    err = rtos_init_timer(&audio_adc_linein_timer, 
+    err = bk_rtos_init_timer(&audio_adc_linein_timer, 
 							ADC_LINEIN_DETECT_TIMER_INTVAL, 
 							audio_intf_adc_linein_timer_handler, 
 							(void *)0);
     ASSERT(kNoErr == err);
     
-	err = rtos_start_timer(&audio_adc_linein_timer);
+	err = bk_rtos_start_timer(&audio_adc_linein_timer);
 	ASSERT(kNoErr == err);
 #endif
 
     while(1)
     {
         AUDIO_MSG_T msg;
-        err = rtos_pop_from_queue(&audio_msg_que, &msg, BEKEN_WAIT_FOREVER);
+        err = bk_rtos_pop_from_queue(&audio_msg_que, &msg, BEKEN_WAIT_FOREVER);
         if(kNoErr == err) {
         	switch(msg.audio_msg) 
             {
@@ -412,7 +412,7 @@ audio_exit:
     GLOBAL_INT_RESTORE();    
     aud_dac_hdl = DD_HANDLE_UNVALID;
     
-    err = rtos_deinit_timer(&audio_dac_fill_timer);
+    err = bk_rtos_deinit_timer(&audio_dac_fill_timer);
     ASSERT(kNoErr == err);
     #endif // CFG_USE_AUD_DAC
 
@@ -422,18 +422,18 @@ audio_exit:
     GLOBAL_INT_RESTORE();    
     aud_adc_hdl = DD_HANDLE_UNVALID;
     
-    err = rtos_deinit_timer(&audio_adc_get_timer);
+    err = bk_rtos_deinit_timer(&audio_adc_get_timer);
     ASSERT(kNoErr == err);
 
-    err = rtos_deinit_timer(&audio_adc_linein_timer);
+    err = bk_rtos_deinit_timer(&audio_adc_linein_timer);
     ASSERT(kNoErr == err);
     #endif // CFG_USE_AUD_ADC
  
-    rtos_deinit_queue(&audio_msg_que);
+    bk_rtos_deinit_queue(&audio_msg_que);
     audio_msg_que = NULL;
 
     audio_handle = NULL;
-    rtos_delete_thread(NULL);
+    bk_rtos_delete_thread(NULL);
 }
 
 UINT32 audio_intf_init(void)
@@ -443,7 +443,7 @@ UINT32 audio_intf_init(void)
     if((!audio_handle) && (!audio_msg_que))
     {
 
-    	ret = rtos_init_queue(&audio_msg_que, 
+    	ret = bk_rtos_init_queue(&audio_msg_que, 
     							"audio_queue",
     							sizeof(AUDIO_MSG_T),
     							AUDIO_QITEM_COUNT);
@@ -453,7 +453,7 @@ UINT32 audio_intf_init(void)
             return kGeneralErr;
     	}
         
-        ret = rtos_create_thread(&audio_handle,
+        ret = bk_rtos_create_thread(&audio_handle,
                                       BEKEN_DEFAULT_WORKER_PRIORITY,
                                       "audio",
                                       (beken_thread_function_t)audio_intf_main,
@@ -461,7 +461,7 @@ UINT32 audio_intf_init(void)
                                       NULL);
         if (ret != kNoErr)
         {
-            rtos_deinit_queue(&audio_msg_que);
+            bk_rtos_deinit_queue(&audio_msg_que);
             audio_msg_que = NULL;
             AUD_INTF_FATAL("Error: Failed to create audio_intf: %d\r\n", ret);
             return kGeneralErr;
@@ -481,7 +481,7 @@ void audio_intf_uninit(void)
         
         // wait untill task exit
         while(audio_handle)
-            rtos_delay_milliseconds(100);     
+            bk_rtos_delay_milliseconds(100);     
     }
 }
 
@@ -493,7 +493,7 @@ void audio_intf_send_msg(u32 new_msg)
     if(audio_msg_que) {
     	msg.audio_msg = new_msg;
     	
-    	ret = rtos_push_to_queue(&audio_msg_que, &msg, BEKEN_NO_WAIT);
+    	ret = bk_rtos_push_to_queue(&audio_msg_que, &msg, BEKEN_NO_WAIT);
     	if(kNoErr != ret)
     	{
     		os_printf("audio_intf_send_msg failed\r\n");

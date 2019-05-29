@@ -8,11 +8,12 @@
 
 #include "include.h"
 
-#if (CFG_SOC_NAME == SOC_BK7221U)
+#if ((CFG_SOC_NAME == SOC_BK7221U) && (CFG_USE_AUD_DAC == 1))
 #include "arm_arch.h"
 #include "general_dma_pub.h"
 #include "audio.h"
 #include "audio_pub.h"
+#include "board.h"
 
 #define codec_printf    rt_kprintf
 
@@ -407,7 +408,7 @@ static rt_size_t audio_codec_write(rt_device_t dev, rt_off_t pos,
 #ifdef PAUSE_EN
 	if (audio->paused)
 	{    
-	    result = rt_data_node_read(audio->node_list, audio->fill_pos, audio->fill_size);
+	    result = rt_data_node_read(audio->node_list, (void*)audio->fill_pos, audio->fill_size);
 
 		if (result == audio->fill_size)
 		{
@@ -554,9 +555,9 @@ void dac_dma_half_handler(UINT32 flag)
     if (result)
     {
     #ifdef PAUSE_EN
-        dac_dma_pause_addr_set(audio->send_fifo + (AUDIO_SEND_BUFFER_SIZE -4));
+        dac_dma_pause_addr_set((UINT32)audio->send_fifo + (AUDIO_SEND_BUFFER_SIZE -4));
 		audio->paused = 1;
-		audio->fill_pos = audio->send_fifo;
+		audio->fill_pos = (UINT32)audio->send_fifo;
 		audio->fill_size = AUDIO_SEND_BUFFER_SIZE / 2;
 	#endif
 		
@@ -578,9 +579,9 @@ void dac_dma_half_handler(UINT32 flag)
      #ifdef PAUSE_EN
 		if (result < (AUDIO_SEND_BUFFER_SIZE / 2))
 		{
-			dac_dma_pause_addr_set(audio->send_fifo + (AUDIO_SEND_BUFFER_SIZE -4));
+			dac_dma_pause_addr_set((UINT32)audio->send_fifo + (AUDIO_SEND_BUFFER_SIZE -4));
 			audio->paused = 1;
-		    audio->fill_pos = audio->send_fifo + result;
+		    audio->fill_pos = (UINT32)audio->send_fifo + result;
 		    audio->fill_size = AUDIO_SEND_BUFFER_SIZE / 2 - result;
 		}
 	#endif
@@ -598,9 +599,9 @@ void dac_dma_finish_handler(UINT32 flag)
     if (result)
     {
     #ifdef PAUSE_EN
-        dac_dma_pause_addr_set(audio->send_fifo + (AUDIO_SEND_BUFFER_SIZE / 2 -4));
+        dac_dma_pause_addr_set((UINT32)audio->send_fifo + (AUDIO_SEND_BUFFER_SIZE / 2 -4));
 		audio->paused = 1;
-		audio->fill_pos = audio->send_fifo + AUDIO_SEND_BUFFER_SIZE / 2;
+		audio->fill_pos = (UINT32)audio->send_fifo + AUDIO_SEND_BUFFER_SIZE / 2;
 		audio->fill_size = AUDIO_SEND_BUFFER_SIZE / 2;
 	#endif
         //rt_kprintf("* ");
@@ -613,9 +614,9 @@ void dac_dma_finish_handler(UINT32 flag)
 	#ifdef PAUSE_EN
 		if (result < (AUDIO_SEND_BUFFER_SIZE / 2))
 		{
-			dac_dma_pause_addr_set(audio->send_fifo + (AUDIO_SEND_BUFFER_SIZE / 2 -4));
+			dac_dma_pause_addr_set((UINT32)audio->send_fifo + (AUDIO_SEND_BUFFER_SIZE / 2 -4));
 			audio->paused = 1;
-		    audio->fill_pos = audio->send_fifo + AUDIO_SEND_BUFFER_SIZE / 2 + result;
+		    audio->fill_pos = (UINT32)audio->send_fifo + AUDIO_SEND_BUFFER_SIZE / 2 + result;
 		    audio->fill_size = AUDIO_SEND_BUFFER_SIZE / 2 - result;
 		}
 	#endif
@@ -689,7 +690,7 @@ int rt_audio_codec_hw_init(void)
     //audio_dac_volume_use_single_port();
     
     audio->send_fifo = sdram_malloc(AUDIO_SEND_BUFFER_SIZE);
-    if (audio->send_fifo == RT_NULL)
+    if ((UINT32)audio->send_fifo == RT_NULL)
     {
         result = -RT_ENOMEM;
         goto __exit;

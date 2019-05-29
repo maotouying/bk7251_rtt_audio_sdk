@@ -342,6 +342,7 @@ static UINT32 saradc_set_calibrate_val(saradc_cal_val_t *p_cal)
     }
     else
     {
+        GLOBAL_INT_RESTORE();
         return SARADC_FAILURE;
     }
     GLOBAL_INT_RESTORE();

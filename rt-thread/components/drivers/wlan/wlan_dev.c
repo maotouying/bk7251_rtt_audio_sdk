@@ -32,6 +32,7 @@
 #include "wlan_dev.h"
 #include "wlan_cmd.h"
 #include "drv_wlan.h"
+#include "drv_wlan_fast_connect.h"
 
 #define NIOCTL_SADDR    0x02
 
@@ -215,17 +216,6 @@ int rt_wlan_set_mac(struct rt_wlan_device *device, rt_uint8_t hwaddr[6])
     int result;
     if (device == RT_NULL) return 0;
     result = rt_device_control(RT_DEVICE(device), NIOCTL_SADDR, (void *)hwaddr);
-    return result;
-}
-
-int rt_wlan_enter_powersave(struct rt_wlan_device *device, int level)
-{
-    int result = 0;
-
-    if (device == RT_NULL) return -RT_EIO;
-
-    result = rt_device_control(RT_DEVICE(device), WIFI_ENTER_POWERSAVE, (void *)&level);
-
     return result;
 }
 

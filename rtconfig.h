@@ -93,11 +93,11 @@
 #define RT_USING_DFS_ROMFS
 
 /* Device Drivers */
-#define BEKEN_USING_IIC
+//#define BEKEN_USING_IIC
 #define RT_USING_DEVICE_IPC
 #define RT_USING_SERIAL
-#define RT_USING_I2C
-#define RT_USING_I2C_BITOPS
+//#define RT_USING_I2C
+//#define RT_USING_I2C_BITOPS
 #define RT_USING_PIN
 #define RT_USING_RTC
 #define RT_USING_SOFT_RTC
@@ -146,7 +146,7 @@
 #define RT_MEMP_NUM_NETCONN 12
 #define RT_LWIP_PBUF_NUM 3
 #define RT_LWIP_RAW_PCB_NUM 2
-#define RT_LWIP_UDP_PCB_NUM 4
+#define RT_LWIP_UDP_PCB_NUM 6
 #define RT_LWIP_TCP_PCB_NUM 8
 #define RT_LWIP_TCP_SEG_NUM 40
 #define RT_LWIP_TCP_SND_BUF 4380
@@ -280,9 +280,9 @@
 #define LWIP_NETIF_HOSTNAME 1
 #define BEKEN_USING_WLAN_STA
 #define RT_USING_CPU_FFS
-#define BEKEN_USING_SPI_FLASH
-#define BEKEN_USING_SPI_PSRAM
-#define BEKEN_USING_SPI_HSLAVE
+//#define BEKEN_USING_SPI_FLASH
+//#define BEKEN_USING_SPI_PSRAM
+//#define BEKEN_USING_SPI_HSLAVE
 
 /* Application Samples Config */
 
@@ -304,5 +304,8 @@
 
 /* voice changer */
 #define CONFIG_VOICE_CHANGER        0
+
+/* tools packages */
+#define PKG_USING_EASYFLASH
 
 #endif

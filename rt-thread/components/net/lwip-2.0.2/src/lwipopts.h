@@ -468,5 +468,7 @@
 #define TFTP_MAX_FILENAME_LEN           64
 #endif
 
+/* Minimal changes to opt.h required for etharp unit tests: */
+#define ETHARP_SUPPORT_STATIC_ENTRIES   1
 
 #endif /* __LWIPOPTS_H__ */

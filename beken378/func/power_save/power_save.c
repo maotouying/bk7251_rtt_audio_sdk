@@ -1,5 +1,5 @@
 #include "intc_pub.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #include "wdt_pub.h"
 #include "gpio_pub.h"
@@ -723,25 +723,25 @@ void power_save_timer_init(void)
     UINT32 reg, err;
 
 #if CFG_SUPPORT_ALIOS
-    if(rtos_is_timer_init(&ps_td_ck_timer))
+    if(bk_rtos_is_timer_init(&ps_td_ck_timer))
 #else
-    if(rtos_is_oneshot_timer_init(&ps_td_ck_timer))
+    if(bk_rtos_is_oneshot_timer_init(&ps_td_ck_timer))
 #endif
     {
         power_save_td_timer_stop();
 #if CFG_SUPPORT_ALIOS
-        rtos_deinit_timer(&ps_td_ck_timer);
+        bk_rtos_deinit_timer(&ps_td_ck_timer);
 #else
-        rtos_deinit_oneshot_timer(&ps_td_ck_timer);
+        bk_rtos_deinit_oneshot_timer(&ps_td_ck_timer);
 #endif
     }
 
     if(bk_ps_info.PsDataWakeupWaitTimeMs > 0)
     {
 #if CFG_SUPPORT_ALIOS
-        err = rtos_init_timer(&ps_td_ck_timer,
+        err = bk_rtos_init_timer(&ps_td_ck_timer,
 #else
-        err = rtos_init_oneshot_timer(&ps_td_ck_timer,
+        err = bk_rtos_init_oneshot_timer(&ps_td_ck_timer,
 #endif
                               bk_ps_info.PsDataWakeupWaitTimeMs,
 #if CFG_SUPPORT_ALIOS
@@ -760,16 +760,16 @@ void power_save_keep_timer_init(void)
     UINT32 reg, err;
     
 #if CFG_SUPPORT_ALIOS
-    if(rtos_is_timer_init(&ps_keep_timer))
+    if(bk_rtos_is_timer_init(&ps_keep_timer))
 #else
-    if(rtos_is_oneshot_timer_init(&ps_keep_timer))
+    if(bk_rtos_is_oneshot_timer_init(&ps_keep_timer))
 #endif
     {
         power_save_keep_timer_stop();
 #if CFG_SUPPORT_ALIOS
-        rtos_deinit_timer(&ps_keep_timer);
+        bk_rtos_deinit_timer(&ps_keep_timer);
 #else
-        rtos_deinit_oneshot_timer(&ps_keep_timer);
+        bk_rtos_deinit_oneshot_timer(&ps_keep_timer);
 #endif
     }
     os_printf("ps_keep_timer init\r\n");
@@ -777,9 +777,9 @@ void power_save_keep_timer_init(void)
     if(ps_keep_timer_period > 0)
     {
 #if CFG_SUPPORT_ALIOS
-    err = rtos_init_timer(&ps_keep_timer,
+    err = bk_rtos_init_timer(&ps_keep_timer,
 #else
-    err = rtos_init_oneshot_timer(&ps_keep_timer,
+    err = bk_rtos_init_oneshot_timer(&ps_keep_timer,
 #endif
                           ps_keep_timer_period,
 #if CFG_SUPPORT_ALIOS
@@ -1060,9 +1060,9 @@ void power_save_td_timer_stop(void)
 
     GLOBAL_INT_DECLARATION();
 #if CFG_SUPPORT_ALIOS
-    err = rtos_stop_timer(&ps_td_ck_timer);
+    err = bk_rtos_stop_timer(&ps_td_ck_timer);
 #else
-    err = rtos_stop_oneshot_timer(&ps_td_ck_timer);
+    err = bk_rtos_stop_oneshot_timer(&ps_td_ck_timer);
 #endif
     ASSERT(kNoErr == err);
     GLOBAL_INT_DISABLE();
@@ -1098,16 +1098,16 @@ void power_save_td_ck_timer_set(void)
     OSStatus err;
 
 #if CFG_SUPPORT_ALIOS
-    if(rtos_is_timer_init(&ps_td_ck_timer) && ps_td_ck_timer_status == 0)
+    if(bk_rtos_is_timer_init(&ps_td_ck_timer) && ps_td_ck_timer_status == 0)
 #else
-    if(rtos_is_oneshot_timer_init(&ps_td_ck_timer) && ps_td_ck_timer_status == 0)
+    if(bk_rtos_is_oneshot_timer_init(&ps_td_ck_timer) && ps_td_ck_timer_status == 0)
 #endif
     {
         ps_td_ck_timer_status = 1;
 #if CFG_SUPPORT_ALIOS
-        err = rtos_start_timer(&ps_td_ck_timer);
+        err = bk_rtos_start_timer(&ps_td_ck_timer);
 #else
-        err = rtos_start_oneshot_timer(&ps_td_ck_timer);
+        err = bk_rtos_start_oneshot_timer(&ps_td_ck_timer);
 #endif
         ASSERT(kNoErr == err);
     }
@@ -1118,9 +1118,9 @@ void power_save_keep_timer_stop(void)
     OSStatus err;
     GLOBAL_INT_DECLARATION();
 #if CFG_SUPPORT_ALIOS
-    err = rtos_stop_timer(&ps_keep_timer);
+    err = bk_rtos_stop_timer(&ps_keep_timer);
 #else
-    err = rtos_stop_oneshot_timer(&ps_keep_timer);
+    err = bk_rtos_stop_oneshot_timer(&ps_keep_timer);
 #endif
     ASSERT(kNoErr == err);
     GLOBAL_INT_DISABLE();
@@ -1179,16 +1179,16 @@ void power_save_keep_timer_set(void)
     OSStatus err;
 
 #if CFG_SUPPORT_ALIOS
-    if(rtos_is_timer_init(&ps_keep_timer) && ps_keep_timer_status == 0)
+    if(bk_rtos_is_timer_init(&ps_keep_timer) && ps_keep_timer_status == 0)
 #else
-    if(rtos_is_oneshot_timer_init(&ps_keep_timer) && ps_keep_timer_status == 0)
+    if(bk_rtos_is_oneshot_timer_init(&ps_keep_timer) && ps_keep_timer_status == 0)
 #endif
     {
         ps_keep_timer_status = 1;
 #if CFG_SUPPORT_ALIOS
-        err = rtos_start_timer(&ps_keep_timer);
+        err = bk_rtos_start_timer(&ps_keep_timer);
 #else
-        err = rtos_start_oneshot_timer(&ps_keep_timer);
+        err = bk_rtos_start_oneshot_timer(&ps_keep_timer);
 #endif
         ASSERT(kNoErr == err);
     }
@@ -1205,9 +1205,9 @@ void power_save_rf_ps_wkup_semlist_wait(void)
     UINT32 ret;
     PS_DO_WKUP_SEM *sem_list = (PS_DO_WKUP_SEM *) os_malloc(sizeof(PS_DO_WKUP_SEM));
 #if CFG_SUPPORT_ALIOS
-    ret = rtos_init_semaphore(&sem_list->wkup_sema, 0);
+    ret = bk_rtos_init_semaphore(&sem_list->wkup_sema, 0);
 #else
-    ret = rtos_init_semaphore(&sem_list->wkup_sema, 1);
+    ret = bk_rtos_init_semaphore(&sem_list->wkup_sema, 1);
 #endif
     ASSERT(0 == ret);
     co_list_push_back(&bk_ps_info.wk_list, &sem_list->list);
@@ -1215,9 +1215,9 @@ void power_save_rf_ps_wkup_semlist_wait(void)
 
     if(sem_list)
     {
-        rtos_get_semaphore(&sem_list->wkup_sema, BEKEN_NEVER_TIMEOUT);
+        bk_rtos_get_semaphore(&sem_list->wkup_sema, BEKEN_NEVER_TIMEOUT);
         ASSERT(0 == ret);
-        ret = rtos_deinit_semaphore(&sem_list->wkup_sema);
+        ret = bk_rtos_deinit_semaphore(&sem_list->wkup_sema);
         ASSERT(0 == ret);
         os_free(sem_list);
         sem_list = NULL;
@@ -1236,7 +1236,7 @@ void power_save_rf_ps_wkup_semlist_set(void)
     {
         PS_DO_WKUP_SEM *sem_list;
         sem_list = list2sem(co_list_pop_front(&bk_ps_info.wk_list));
-        ret = rtos_set_semaphore(&sem_list->wkup_sema);
+        ret = bk_rtos_set_semaphore(&sem_list->wkup_sema);
         ASSERT(0 == ret);
     }
 }

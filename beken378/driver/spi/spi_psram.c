@@ -10,7 +10,7 @@
 
 #include "drv_model_pub.h"
 #include "mem_pub.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #if CFG_USE_SPI_MST_PSRAM
 

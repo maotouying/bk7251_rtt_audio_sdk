@@ -10,7 +10,7 @@
 
 #include "drv_model_pub.h"
 #include "mem_pub.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 
 #include <rtdevice.h>
 
@@ -128,14 +128,14 @@ static void spi_flash_write_status(UINT16 ustatus)
 
     while(spi_flash_is_busy())
     {
-        rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
+        bk_rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
     }
 
     spi_flash_send_command(CMD_WRITE_ENABLE); 
 
     while(spi_flash_is_busy())
     {
-        rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
+        bk_rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
     }
     
     bk_spi_master_xfer(&msg);
@@ -188,14 +188,14 @@ static void spi_flash_earse(UINT32 addr, UINT32 mode)
 
     while(spi_flash_is_busy())
     {
-        rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
+        bk_rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
     }
 
     spi_flash_send_command(CMD_WRITE_ENABLE); 
 
     while(spi_flash_is_busy())
     {
-        rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
+        bk_rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
     }
     
     bk_spi_master_xfer(&msg);
@@ -229,7 +229,7 @@ static int spi_flash_read_page(UINT32 addr, UINT32 size, UINT8 *dst)
     
     while(spi_flash_is_busy())
     {
-        rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
+        bk_rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
     }
 
     bk_spi_master_xfer(&msg);
@@ -272,14 +272,14 @@ static int spi_flash_program_page(UINT32 addr, UINT32 size, UINT8 *src)
 
     while(spi_flash_is_busy())
     {
-        rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
+        bk_rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
     }
     
     spi_flash_send_command(CMD_WRITE_ENABLE); 
 
     while(spi_flash_is_busy())
     {
-        rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
+        bk_rtos_delay_milliseconds(DELAY_WHEN_BUSY_MS);
     }
     
     bk_spi_master_xfer(&msg);

@@ -4,11 +4,13 @@
 #include <stdint.h>
 
 #include "sys_rtos.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "power_save_pub.h"
 
 extern void WFI(void);
 extern UINT32 mcu_power_save(UINT32 sleep_tick);
+extern void rt_user_idle_hook(void);
+
 
 /*
 0: normal
@@ -21,7 +23,7 @@ static char log_print = 0;
 
 static void idle_hook(void)
 {
-    rt_tick_t timeout_tick, delta_tick;
+    rt_tick_t timeout_tick, delta_tick=0;
 
     rt_enter_critical();
     /* get next os tick */
@@ -31,10 +33,12 @@ static void idle_hook(void)
         timeout_tick -= rt_tick_get();
     }
 
+    #if CFG_USE_MCU_PS
     /* sleep cpu */
     delta_tick = mcu_power_save(timeout_tick);
     if(log_print)
         rt_kprintf("s:%d, d:%d\n", timeout_tick, delta_tick);
+    #endif
 
     if (delta_tick)
     {
@@ -44,6 +48,8 @@ static void idle_hook(void)
         rt_timer_check();
     }
     rt_exit_critical();
+
+    rt_user_idle_hook();
 }
 
 static int drv_pm_init(void)

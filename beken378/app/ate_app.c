@@ -10,6 +10,8 @@
 
 char ate_mode_state = 0;
 
+#define CMD_SINGLE_WAVE  "txevm -b 0 -r 24 -c 1 -w 1"
+
 void ate_gpio_init(void)
 {
     uint32_t param;
@@ -26,7 +28,7 @@ uint32_t ate_mode_check(void)
     param = ATE_GPIO_ID;
     ret = gpio_ctrl( CMD_GPIO_INPUT, &param);
 
-    return (0 == ret);
+    return (ATE_ENABLE_GIPO_LEVEL == ret);
 }
 
 void ate_app_init(void)
@@ -53,6 +55,23 @@ uint32_t get_ate_mode_state(void)
     return 0;
 }
 
+#include "mem_pub.h"
+#include "str_pub.h"
+static void do_single_wave_test(void)
+{
+    uint32_t cmd_len = os_strlen(CMD_SINGLE_WAVE) + 1;
+    uint8 *cmd_buf = os_malloc(cmd_len);
+    if (cmd_buf) {
+        extern void bk_test_cmd_handle_input(char *inbuf, int len);
+    
+        os_memcpy(cmd_buf, CMD_SINGLE_WAVE, cmd_len);
+        bk_test_cmd_handle_input(cmd_buf, cmd_len);
+        
+        os_free(cmd_buf);
+    }
+}
+
+
 #if (!CFG_SUPPORT_ALIOS)
 void ate_start(void)
 {
@@ -61,6 +80,8 @@ void ate_start(void)
     cli_init();
 
     ATE_PRT("ate_start\r\n");
+
+    //do_single_wave_test();
 }
 #endif
 

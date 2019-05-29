@@ -1,6 +1,9 @@
 #ifndef _I2S_H_
 #define _I2S_H_
 
+#define NUMBER_ROUND_UP(a,b)        ((a) / (b) + (((a) % (b)) ? 1 : 0))
+#define NUMBER_ROUND_DOWN(a,b)      ((a) / (b))
+
 #define I2S_BASE                     (0x00802500)
 
 #define PCM_CTRL                     (I2S_BASE + 0 * 4)
@@ -94,11 +97,30 @@
 #define FIFO_LEVEL_48		2
 
 /*******************************************************************************
+* mode micros
+*******************************************************************************/
+#define I2S_MODE							(0 << 0)
+#define I2S_LEFT_JUSTIFIED					(1 << 0)
+#define I2S_RIGHT_JUSTIFIED					(2 << 0)
+#define I2S_RESERVE							(3 << 0)
+#define I2S_SHORT_FRAME_SYNC				(4 << 0)
+#define I2S_LONG_FRAME_SYNC					(5 << 0)
+#define I2S_NORMAL_2B_D						(6 << 0)
+#define I2S_DELAY_2B_D						(7 << 0)
+
+#define I2S_LRCK_NO_TURN					(0 << 3)
+#define I2S_SCK_NO_TURN						(0 << 4)
+#define I2S_MSB_FIRST						(0 << 5)
+
+#define I2S_SYNC_LENGTH_BIT					(8)
+#define I2S_PCM_DATA_LENGTH_BIT				(12)
+
+/*******************************************************************************
 * Function Declarations
 *******************************************************************************/
 UINT32 i2s_configure(UINT32 fifo_level, UINT32 sample_rate, UINT32 bits_per_sample, UINT32 mode);
 
 UINT32 i2s_transfer(UINT32 *i2s_send_buf , UINT32 *i2s_recv_buf, UINT32 count , UINT32 param );
-UINT32 i2s_ctrl(UINT32 cmd, void *param);
+static UINT32 i2s_ctrl(UINT32 cmd, void *param);
 
 #endif //_I2S_H_

@@ -4,6 +4,9 @@
 
 #include "uart_pub.h"
 #include "arm_arch.h"
+#include "ble_pub.h"
+#include "icu_pub.h"
+#include "sys_ctrl_pub.h"
 
 #include "mac.h"
 #include "phy.h"
@@ -510,6 +513,86 @@ void rs_get_rx_result(void)
 	RS_PRT("CCASec40 Busy : %3d %%\r\n", (CCASEC40 / 10000));
 	RS_PRT("CCASec80 Busy : %3d %%\r\n", (CCASEC80 / 10000));
 	RS_PRT("\r\n");
+}
+
+void rx_clean_ble_rx_result(void)
+{
+    sddev_control(BLE_DEV_NAME, CMD_BLE_STOP_COUNTING, NULL);
+}
+
+void rx_start_ble_rx_counting(void)
+{
+    sddev_control(BLE_DEV_NAME, CMD_BLE_START_COUNTING, NULL);
+}
+
+void rs_ble_test_start(UINT32 channel)
+{
+    UINT32 param;
+    param = PWD_BLE_CLK_BIT;
+    
+    sddev_control(SCTRL_DEV_NAME, CMD_BLE_RF_BIT_SET, NULL);
+    sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_BLE_POWERUP, NULL);
+    sddev_control(ICU_DEV_NAME, CMD_TL410_CLK_PWR_UP, &param);
+
+    param = 0x3ba7a940;
+    sddev_control(BLE_DEV_NAME, CMD_BLE_SET_GFSK_SYNCWD, &param);
+    sddev_control(BLE_DEV_NAME, CMD_BLE_AUTO_CHANNEL_DISABLE, NULL);
+    sddev_control(BLE_DEV_NAME, CMD_BLE_AUTO_SYNCWD_DISABLE, NULL);
+
+    if(channel > 39)
+    {
+        channel = 39;
+    }
+    param = (channel + 1) * 2;
+    sddev_control(BLE_DEV_NAME, CMD_BLE_SET_CHANNEL, &param);
+    param = PN9_RX;
+    sddev_control(BLE_DEV_NAME, CMD_BLE_SET_PN9_TRX, &param);
+}
+
+void rs_ble_test_stop(void)
+{
+    sddev_control(SCTRL_DEV_NAME, CMD_BLE_RF_BIT_CLR, NULL);
+    sddev_control(SCTRL_DEV_NAME, CMD_SCTRL_BLE_POWERDOWN, NULL);
+}
+
+void rx_get_ble_rx_result(void)
+{
+    UINT32 rx_ble_total = 0xFFFFFFFF;
+    UINT32 rx_ble_total_old = 0xFFFFFFFF;
+    UINT32 rx_ble_err_total = 0xFFFFFFFF;
+    UINT32 rx_ble_err_total_old = 0xFFFFFFFF;
+    
+    sddev_control(BLE_DEV_NAME, CMD_BLE_HOLD_PN9_ESTIMATE, NULL);
+    
+    rx_ble_total = REG_READ(0x0080B454);
+    while(rx_ble_total != rx_ble_total_old)
+    {
+        rx_ble_total_old = rx_ble_total;
+        rx_ble_total = REG_READ(0x0080B454);
+    }
+
+    rx_ble_err_total = REG_READ(0x0080B458);
+    while(rx_ble_err_total != rx_ble_err_total_old)
+    {
+        rx_ble_err_total_old = rx_ble_err_total;
+        rx_ble_err_total = REG_READ(0x0080B458);
+    }
+
+    RS_PRT("\r\nTotal  : %d\r\n", rx_ble_total);
+    RS_PRT("Error  : %d\r\n", rx_ble_err_total);
+
+    if(rx_ble_err_total > 0)
+    {
+        RS_PRT("BER    : %d.%02d %%\r\n", (10000 * rx_ble_err_total / rx_ble_total) / 100,
+            (1000 * rx_ble_err_total / rx_ble_total) % 100);
+    }
+    else
+    {
+        RS_PRT("BER    : %d.%02d %%\r\n", 0, 0);
+    }
+
+    sddev_control(BLE_DEV_NAME, CMD_BLE_STOP_COUNTING, NULL);
+    sddev_control(BLE_DEV_NAME, CMD_BLE_START_COUNTING, NULL);
 }
 
 #endif // CFG_RX_SENSITIVITY_TEST

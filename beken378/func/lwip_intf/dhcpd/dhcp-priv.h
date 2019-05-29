@@ -38,6 +38,7 @@ struct dhcp_server_data {
 	char *msg;
 	struct sockaddr_in saddr;	/* dhcp server address */
 	struct sockaddr_in dnsaddr;	/* dns server address */
+	struct sockaddr_in uaddr;	/* unicast address */
 	struct sockaddr_in baddr;	/* broadcast address */
 	struct sockaddr_in ctrladdr;
 	struct client_mac_cache ip_mac_mapping[MAC_IP_CACHE_SIZE];
@@ -46,9 +47,11 @@ struct dhcp_server_data {
 	uint32_t client_ip;	/* last address that was requested, network
 				 * order */
 	uint32_t current_ip;     /* keep track of assigned IP addresses */
+	uint32_t router_ip;     /* router IP addresses */
     void *prv;
 };
 
+void dhcp_enable_nack_dns_server(void);
 int dhcp_server_init(void *intrfc_handle);
 void dhcp_server(void* data);
 int dhcp_send_halt(void);

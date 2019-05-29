@@ -4,7 +4,7 @@
 #include "mem_pub.h"
 #include "uart_pub.h"
 #include "sys_rtos.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "error.h"
 #include "fake_clock_pub.h"
 #include "wlan_ui_pub.h"
@@ -301,7 +301,7 @@ void airkiss_switch_channel_callback(void *data)
     bk_wlan_set_channel_sync(channel);
     airkiss_change_channel(ak_contex);
 
-    ret = rtos_change_period(&ak_chan_timer, timer_cnt);
+    ret = bk_rtos_change_period(&ak_chan_timer, timer_cnt);
     ASSERT(kNoErr == ret);
 
 }
@@ -312,7 +312,7 @@ void airkiss_doing_timeout_callback(void *data)
     AIRKISS_WARN("airkiss_doing_timeout, restart channel switch timer\r\n");
 
     // stop doing timer
-    ret = rtos_stop_timer(&ak_doing_timer);
+    ret = bk_rtos_stop_timer(&ak_doing_timer);
     ASSERT(kNoErr == ret);
 
     airkiss_change_channel(ak_contex);
@@ -321,7 +321,7 @@ void airkiss_doing_timeout_callback(void *data)
     airkiss_set_scan_all_channel();
     g_chans.cur_chan_idx = 0;  // set channel 1
     bk_wlan_set_channel_sync(g_chans.chan[g_chans.cur_chan_idx].channel);
-    ret = rtos_change_period(&ak_chan_timer, AIRKISS_SWITCH_TIMER);
+    ret = bk_rtos_change_period(&ak_chan_timer, AIRKISS_SWITCH_TIMER);
     ASSERT(kNoErr == ret);
 }
 
@@ -339,7 +339,7 @@ void airkiss_monitor_callback(uint8_t*data, int len, hal_wifi_link_info_t *info)
     GLOBAL_INT_RESTORE();
 
     if(ak_semaphore)
-        rtos_set_semaphore(&ak_semaphore);
+        bk_rtos_set_semaphore(&ak_semaphore);
 }
 
 int process_airkiss(const unsigned char *packet, int size)
@@ -356,7 +356,7 @@ int process_airkiss(const unsigned char *packet, int size)
     }
     else if(ret == AIRKISS_STATUS_CHANNEL_LOCKED)
     {
-        result = rtos_stop_timer(&ak_chan_timer);
+        result = bk_rtos_stop_timer(&ak_chan_timer);
         ASSERT(kNoErr == result);
         for(i = 0; i < g_macs.mac_cnt; i++)
         {
@@ -372,12 +372,12 @@ int process_airkiss(const unsigned char *packet, int size)
         AIRKISS_WARN("Lock channel in %d\r\n", g_chans.chan[g_chans.cur_chan_idx].channel);
 
         AIRKISS_WARN("start airkiss doing timer\r\n");
-        result = rtos_start_timer(&ak_doing_timer);
+        result = bk_rtos_start_timer(&ak_doing_timer);
         ASSERT(kNoErr == result);
     }
     else if(ret == AIRKISS_STATUS_COMPLETE)
     {
-        result = rtos_stop_timer(&ak_doing_timer);
+        result = bk_rtos_stop_timer(&ak_doing_timer);
         ASSERT(kNoErr == result);
     }
 
@@ -387,7 +387,7 @@ int process_airkiss(const unsigned char *packet, int size)
 void airkiss_connected_to_bssid(void)
 {
     if(ak_connect_semaphore)
-        rtos_set_semaphore(&ak_connect_semaphore);
+        bk_rtos_set_semaphore(&ak_connect_semaphore);
 }
 
 void airkiss_start_udp_boardcast(u8 random_data)
@@ -430,13 +430,13 @@ void airkiss_main( void* arg )
     int airkiss_read_size = 0;
     u8 *airkiss_read_buf = NULL;
 
-    result = rtos_init_timer(&ak_chan_timer,
+    result = bk_rtos_init_timer(&ak_chan_timer,
                             AIRKISS_SWITCH_TIMER,
                             airkiss_switch_channel_callback,
                             (void *)0);
     ASSERT(kNoErr == result);
 
-    result = rtos_init_timer(&ak_doing_timer,
+    result = bk_rtos_init_timer(&ak_doing_timer,
                             AIRKISS_DOING_TIMER,
                             airkiss_doing_timeout_callback,
                             (void *)0);
@@ -472,7 +472,7 @@ void airkiss_main( void* arg )
     g_chans.cur_chan_idx = 0;  // set channel 1
     bk_wlan_set_channel_sync(g_chans.chan[g_chans.cur_chan_idx].channel);
 
-    result = rtos_start_timer(&ak_chan_timer);
+    result = bk_rtos_start_timer(&ak_chan_timer);
     ASSERT(kNoErr == result);
 
     airkiss_exit = 0;
@@ -486,7 +486,7 @@ void airkiss_main( void* arg )
         if(airkiss_exit)
             break;
 
-        result = rtos_get_semaphore(&ak_semaphore, BEKEN_WAIT_FOREVER);
+        result = bk_rtos_get_semaphore(&ak_semaphore, BEKEN_WAIT_FOREVER);
         //ASSERT(kNoErr == result);
 
         GLOBAL_INT_DISABLE();
@@ -523,7 +523,7 @@ void airkiss_main( void* arg )
     if(ak_result.ssid)
     {
         if(ak_connect_semaphore == NULL) {
-            result = rtos_init_semaphore(&ak_connect_semaphore, 1);
+            result = bk_rtos_init_semaphore(&ak_connect_semaphore, 1);
             ASSERT(kNoErr == result);
         }
 
@@ -534,7 +534,7 @@ void airkiss_main( void* arg )
 
         // wait for connect to bssid
         con_time = AIRKISS_CONNECT_TIMER;
-        result = rtos_get_semaphore(&ak_connect_semaphore, con_time);
+        result = bk_rtos_get_semaphore(&ak_connect_semaphore, con_time);
         if(result == kNoErr) {
             // start udp boardcast
             if(airkiss_exit)
@@ -552,7 +552,7 @@ void airkiss_main( void* arg )
 
         net_set_sta_ipup_callback(NULL);
 
-        rtos_deinit_semaphore(&ak_connect_semaphore);
+        bk_rtos_deinit_semaphore(&ak_connect_semaphore);
         ak_connect_semaphore = NULL;
     }
 
@@ -563,16 +563,16 @@ kiss_exit:
     ak_contex = NULL;
     os_free(airkiss_read_buf);
 
-    result = rtos_deinit_timer(&ak_chan_timer);
+    result = bk_rtos_deinit_timer(&ak_chan_timer);
     ASSERT(kNoErr == result);
-    result = rtos_deinit_timer(&ak_doing_timer);
+    result = bk_rtos_deinit_timer(&ak_doing_timer);
     ASSERT(kNoErr == result);
 
-    rtos_deinit_semaphore(&ak_semaphore);
+    bk_rtos_deinit_semaphore(&ak_semaphore);
     ak_semaphore = NULL;
 
     ak_thread_handle = NULL;
-    rtos_delete_thread(NULL);
+    bk_rtos_delete_thread(NULL);
 }
 
 u32 airkiss_process(u8 start)
@@ -586,12 +586,12 @@ u32 airkiss_process(u8 start)
     {   
         // start airkiss 
         if(ak_semaphore == NULL) {
-            ret = rtos_init_semaphore(&ak_semaphore, 1);
+            ret = bk_rtos_init_semaphore(&ak_semaphore, 1);
             ASSERT(kNoErr == ret);
         }
 
         if(ak_thread_handle == NULL) {
-            ret = rtos_create_thread(&ak_thread_handle,
+            ret = bk_rtos_create_thread(&ak_thread_handle,
                                       BEKEN_DEFAULT_WORKER_PRIORITY,
                                       "airkiss",
                                       (beken_thread_function_t)airkiss_main,
@@ -614,7 +614,7 @@ u32 airkiss_process(u8 start)
             GLOBAL_INT_RESTORE();
             if(ak_connect_semaphore)
             {
-                rtos_set_semaphore(&ak_connect_semaphore);
+                bk_rtos_set_semaphore(&ak_connect_semaphore);
             }
         }
 

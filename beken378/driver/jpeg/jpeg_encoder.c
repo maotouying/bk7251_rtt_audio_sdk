@@ -13,7 +13,7 @@
 #include "mem_pub.h"
 #include "general_dma_pub.h"
 
-#define JPEG_BITRATE_MAX_SIZE           (40 * 1024)
+#define JPEG_BITRATE_MAX_SIZE           (35 * 1024)
 #define JPEG_BITRATE_MIN_SIZE           (20 * 1024)
 
 const UINT32 jpeg_quant_table[JPEG_QUANT_TAB_LEN] = {

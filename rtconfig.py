@@ -17,7 +17,7 @@ if os.getenv('RTT_CC'):
 
 if  CROSS_TOOL == 'gcc':
     PLATFORM    = 'gcc'
-    EXEC_PATH   = r'C:\Developer\Tools\env\tools\gnu_gcc\arm_gcc\mingw\bin'
+    EXEC_PATH   = r'/home/bxu/gcc-arm-none-eabi-4_9-2015q1/bin'
 else:
     print 'Please make sure your toolchains is GNU GCC!'
     exit(0)
@@ -52,7 +52,7 @@ if PLATFORM == 'gcc':
         CFLAGS += ' -O0 -gdwarf-2'
         AFLAGS += ' -gdwarf-2'
     else:
-        CFLAGS += ' -Os'
+        CFLAGS += ' -Os -std=c99'
 
     CXXFLAGS = CFLAGS
 

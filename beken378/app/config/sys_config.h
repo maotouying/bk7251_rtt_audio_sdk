@@ -60,6 +60,8 @@
 #define CFG_SUPPORT_CCD                            0
 #define CFG_SUPPORT_UVC                            0
 #endif
+#define CFG_USE_USB_CHARGE                         0
+
 
 /*section 4-----DEBUG macro config-----*/
 #define CFG_UART_DEBUG                             0
@@ -105,9 +107,9 @@
 #define CFG_USE_TEMPERATURE_DETECT                 0
 
 /*section 12-----for SPIDMA interface*/
-#define CFG_USE_HSLAVE_SPI                         1
+#define CFG_USE_HSLAVE_SPI                         0
 #define CFG_USE_SPIDMA                             0
-#define CFG_USE_CAMERA_INTF                        0
+#define CFG_USE_CAMERA_INTF                        1
 
 /*section 13-----for GENERRAL DMA */
 #define CFG_GENERAL_DMA                            1
@@ -116,7 +118,7 @@
 #define CFG_USE_FTPD_UPGRADE                       0
 
 /*section 15-----support customer macro*/
-#define CFG_SUPPORT_TIANZHIHENG_DRONE              0
+#define CFG_USE_APP_DEMO_VIDEO_TRANSFER            1
 
 /*section 16-----support mcu & deep sleep*/
 #define CFG_USE_MCU_PS                             1
@@ -158,10 +160,10 @@
 #define CFG_USE_AUD_ADC                            1
 
 /*section 26 ----- general spi master/slave */
-#define CFG_USE_SPI_MASTER                         1
-#define CFG_USE_SPI_MST_FLASH                      1
-#define CFG_USE_SPI_MST_PSRAM                      1
-#define CFG_USE_SPI_SLAVE                          1
+#define CFG_USE_SPI_MASTER                         0
+#define CFG_USE_SPI_MST_FLASH                      0
+#define CFG_USE_SPI_MST_PSRAM                      0
+#define CFG_USE_SPI_SLAVE                          0
 
 
 #endif // _SYS_CONFIG_H_

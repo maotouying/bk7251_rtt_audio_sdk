@@ -14,6 +14,7 @@
 #include "ieee802_11_defs.h"
 #include "wlan_ui_pub.h"
 #include "mcu_ps_pub.h"
+#include "bk_rtos_pub.h"
 
 
 uint32_t scan_cfm = 0;
@@ -646,7 +647,7 @@ void rwnx_recv_msg(void)
             if(tx_msg->cfm && rx_msg->param_len)
                 os_memcpy(tx_msg->cfm, &rx_msg->param[0], rx_msg->param_len);
 
-            ret = rtos_set_semaphore(&tx_msg->semaphore);
+            ret = bk_rtos_set_semaphore(&tx_msg->semaphore);
             ASSERT(0 == ret);
         }
         else

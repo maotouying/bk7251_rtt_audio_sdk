@@ -69,6 +69,7 @@ enum
 
     CMD_QSPI_VDDRAM_VOLTAGE,
     CMD_QSPI_IO_VOLTAGE,
+    CMD_SCTRL_SET_VDD_VALUE,
     #endif // (CFG_SOC_NAME != SOC_BK7231)
 
     #if (CFG_SOC_NAME == SOC_BK7221U)
@@ -93,7 +94,10 @@ enum
     CMD_SCTRL_SET_ANALOG8,
     CMD_SCTRL_SET_ANALOG9,
     CMD_SCTRL_SET_ANALOG10,
-    
+    CMD_SCTRL_AUDIO_PLL,
+    CMD_SCTRL_USB_CHARGE_CAL,
+    CMD_SCTRL_USB_CHARGE_START,
+    CMD_SCTRL_USB_CHARGE_STOP,
 	#endif // (CFG_SOC_NAME == SOC_BK7221)
 };
 
@@ -180,7 +184,7 @@ enum
 #if (CFG_SOC_NAME == SOC_BK7231U)
 #define DEFAULT_TXID_XTAL                        (0x0F)
 #elif (CFG_SOC_NAME == SOC_BK7221U)
-#define DEFAULT_TXID_XTAL                        (0x08)
+#define DEFAULT_TXID_XTAL                        (0x10)
 #endif // (CFG_SOC_NAME == SOC_BK7231U)
 
 #if (CFG_SOC_NAME != SOC_BK7231)
@@ -212,6 +216,13 @@ typedef struct efuse_oper_st
     UINT8 addr;
     UINT8 data;    
 } EFUSE_OPER_ST, *EFUSE_OPER_PTR;
+
+typedef struct charge_oper_st
+{
+    UINT8 type;
+    UINT8 oper;
+    UINT8 cal[3];
+} CHARGE_OPER_ST, *CHARGE_OPER_PTR;
 
 #define AUDIO_DAC_VOL_DIFF_MODE                      (0)
 #define AUDIO_DAC_VOL_SINGLE_MODE                    (1)
@@ -257,4 +268,6 @@ extern void sctrl_rf_sleep(void);
 extern void sctrl_rf_wakeup(void);
 extern void sctrl_sta_ps_init(void);
 extern void sctrl_flash_select_dco(void);
+extern UINT32 charger_is_full(void);
+extern UINT32 usb_is_pluged(void);
 #endif // _SCTRL_PUB_H_

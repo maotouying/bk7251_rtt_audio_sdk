@@ -10,7 +10,7 @@
 #include "saradc_pub.h"
 #include "uart_pub.h"
 #include "sys_rtos.h"
-#include "rtos_pub.h"
+#include "bk_rtos_pub.h"
 #include "error.h"
 #include "fake_clock_pub.h"
 #include "rw_pub.h"
@@ -141,7 +141,7 @@ TftpSend (void)
 
 void Tftp_Uninit(void)
 {
-    rtos_deinit_timer(&tm_tftp_server);
+    bk_rtos_deinit_timer(&tm_tftp_server);
     close( udp_tftp_listen_fd );
 
     if(tftp_buf)
@@ -152,7 +152,7 @@ void Tftp_Uninit(void)
 
     if(tftp_thread_handle)
     {
-        rtos_delete_thread(&tftp_thread_handle);
+        bk_rtos_delete_thread(&tftp_thread_handle);
         tftp_thread_handle = 0;
     }
 }
@@ -405,12 +405,12 @@ void tftp_server_process( beken_thread_arg_t arg )
 
     TftpStart();
 
-    result = rtos_init_timer(&tm_tftp_server,
+    result = bk_rtos_init_timer(&tm_tftp_server,
                              TFTP_TIMER / FCLK_DURATION_MS,
                              tftp_timer_callback,
                              (void *)0);
     ASSERT(kNoErr == result);
-    result = rtos_start_timer(&tm_tftp_server);
+    result = bk_rtos_start_timer(&tm_tftp_server);
     ASSERT(kNoErr == result);
 	flash_protection_op(FLASH_XTX_16M_SR_WRITE_ENABLE, NONE);
 	
@@ -431,7 +431,7 @@ exit:
         os_free(tftp_buf);
 		
 	flash_protection_op(FLASH_XTX_16M_SR_WRITE_ENABLE, ALL);
-    rtos_delete_thread(&tftp_thread_handle);
+    bk_rtos_delete_thread(&tftp_thread_handle);
 }
 
 void tftp_start(void)
@@ -442,10 +442,10 @@ void tftp_start(void)
 
     TFTP_PRT("tftp c started\r\n");
     {
-        rtos_init_semaphore(&sm_tftp_server, 10);
+        bk_rtos_init_semaphore(&sm_tftp_server, 10);
 
         /* Start ps server listener thread*/
-        ret = rtos_create_thread( &tftp_thread_handle, BEKEN_APPLICATION_PRIORITY,
+        ret = bk_rtos_create_thread( &tftp_thread_handle, BEKEN_APPLICATION_PRIORITY,
                                   "tftp_ota",
                                   (beken_thread_function_t)tftp_server_process,
                                   0x1000,

@@ -271,26 +271,26 @@ uint8_t MUSB_BoardArmTimer(void *pPrivateData, uint16_t wIndex,
 
     if(FALSE == bPeriodic)
     {
-        if(rtos_is_oneshot_timer_running(&(pWrapper->timer)))
+        if(bk_rtos_is_oneshot_timer_running(&(pWrapper->timer)))
         {
             MUSB_PRT("[MGC] Timer %d, stop it;\r\n", wIndex);
-            rtos_stop_oneshot_timer(&(pWrapper->timer));
+            bk_rtos_stop_oneshot_timer(&(pWrapper->timer));
         }
-        if(rtos_is_oneshot_timer_init(&(pWrapper->timer)))
+        if(bk_rtos_is_oneshot_timer_init(&(pWrapper->timer)))
         {
             MUSB_PRT("[MGC] Timer %d, deinit it;\r\n", wIndex);
-            rtos_deinit_oneshot_timer(&(pWrapper->timer));
+            bk_rtos_deinit_oneshot_timer(&(pWrapper->timer));
         }
 
         MUSB_PRT("[MGC] Timer %d, arm it;\r\n", wIndex);
-        err = rtos_init_oneshot_timer(&(pWrapper->timer),
+        err = bk_rtos_init_oneshot_timer(&(pWrapper->timer),
                                       dwTime,
                                       (timer_2handler_t)pfExpireCallback,
                                       pParam,
                                       NULL);
         ASSERT(kNoErr == err);
 
-        err = rtos_start_oneshot_timer(&(pWrapper->timer));
+        err = bk_rtos_start_oneshot_timer(&(pWrapper->timer));
         ASSERT(kNoErr == err);
     }
     else
